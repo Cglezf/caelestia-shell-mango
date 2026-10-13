@@ -82,7 +82,6 @@ The following features are available:
 
 ### Current limits
 
-- Live window previews require Mango to expose `foreign_toplevel_id` and a version of `grim` with `-T` support. Older versions retain the preview fallback.
 - Mango has one native special-tag overlay per output. It does not provide independent Hyprland-style named special workspaces; the adapter exposes the native overlay as `special:special`.
 - Alpha-threshold blur rules depend on the installed Mango version; older builds use their native transparency mask. The remaining Qt text-input warning is documented below.
 - Notifications require Caelestia to own `org.freedesktop.Notifications`; another running notification server can prevent registration.
@@ -114,6 +113,51 @@ Before installing the shell, make sure you have MangoWC properly set up:
 1. **MangoWC Compositor**: Install and configure MangoWC ([GitHub repo](https://github.com/mangowm/mango))
 2. **Blur**: Disabling Mango blur is not an installation requirement. To let Caelestia manage
    drawer blur, follow [automatic blur integration](#automatic-blur-integration) after installation.
+
+### Guided installation (recommended)
+
+Run the installer as your normal user in a terminal:
+
+```sh
+git clone https://github.com/evoziosk/caelestia-shell-mango.git "$HOME/caelestia-shell-mango"
+cd "$HOME/caelestia-shell-mango"
+./install.sh
+```
+
+If already cloned, skip cloning and run `./install.sh` from your checkout.
+The installer checks prerequisites, offers missing dependency installation on Arch-based systems
+using Pacman and an existing Yay or Paru helper, then configures, builds, and installs the shell.
+Package managers retain their normal confirmation prompts. On other distributions, install the
+dependencies below first. The installer does not bootstrap an AUR helper or perform a system upgrade.
+
+**Enter your sudo password at sudo's normal terminal prompt when requested.** Password characters
+will not be shown. The script never reads, stores, or passes your password as an argument.
+Builds run as your normal user; sudo is used for system packages and the final installation.
+
+After installation, optional prompts add shortcuts, autostart, and blur integration. Config changes
+are backed up. Existing shortcuts are preserved; conflicting keys are reported without changing the
+config. TOML and symlink-managed Mango configs require declarative/manual setup. The installer does
+not stop another shell or launch a second instance: close the old Caelestia instance and run `qs -c caelestia`.
+
+Useful options:
+
+```sh
+./install.sh --check                 # Read-only prerequisite check
+./install.sh --jobs 1                # Use less memory during compilation
+./install.sh --build-dir build-local # Use a separate build directory
+./install.sh --help
+```
+
+Rerun after updating the checkout to rebuild and reinstall. If compilation or installation fails,
+the installer stops; correct the displayed error and rerun. “No work to do” means compilation is current;
+the installation step still copies updated QML and assets.
+
+### Compatibility requirements
+
+Live previews—the thumbnail shown when hovering over the bar's window title, also used by window info—
+work on the tested Mango setup. They require Mango client `foreign_toplevel_id` support and `grim -T`.
+Older versions keep window titles and metadata available; upgrade those dependencies for live capture.
+This is a version requirement, rather than an unfinished port feature.
 
 ### Manual Installation (MangoWC)
 
@@ -1277,6 +1321,8 @@ Checks completed on Mango 0.18.0 and the installed Quickshell/Qt stack:
 - Native window capture, missing-icon fallbacks, and first-open/reopen launcher focus.
 - Dynamic palettes with the CLI unavailable: saved dark/light modes, wallpaper previews, variant
   changes, and replacement of outdated requests. Both legacy and current Matugen JSON formats are tested.
+- Installer prerequisite checks and a mocked interactive build/install flow; Mango config backups,
+  repeated setup, source-file bindings, key conflicts, and managed-config preservation.
 
 Run the deterministic Python and JavaScript checks from the repository:
 
