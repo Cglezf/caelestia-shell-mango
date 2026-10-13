@@ -1,11 +1,14 @@
-// import Quickshell.Hyprland  // Disabled for MangoWC - no global shortcuts support
 import QtQuick
+import qs.services
 
-// Stub for GlobalShortcut (MangoWC doesn't have this feature)
 QtObject {
+    id: root
     property string appid: "caelestia"
     property string name: ""
     property string description: ""
     signal pressed
     signal released
+
+    Component.onCompleted: ShortcutRegistry.register(name, root)
+    Component.onDestruction: ShortcutRegistry.unregister(name, root)
 }

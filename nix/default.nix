@@ -13,7 +13,13 @@
   wl-clipboard,
   libqalculate,
   bash,
-  hyprland,
+  mango,
+  grim,
+  slurp,
+  gpu-screen-recorder,
+  python3,
+  wayland,
+  libxkbcommon,
   material-symbols,
   rubik,
   nerd-fonts,
@@ -48,7 +54,11 @@
       wl-clipboard
       libqalculate
       bash
-      hyprland
+      mango
+      grim
+      slurp
+      gpu-screen-recorder
+      python3
     ]
     ++ extraRuntimeDeps
     ++ lib.optional withCli caelestia-cli;
@@ -95,7 +105,7 @@
     };
 
     nativeBuildInputs = [cmake ninja pkg-config];
-    buildInputs = [qt6.qtbase qt6.qtdeclarative qt6.qtshadertools libqalculate pipewire aubio libcava fftw lm_sensors];
+    buildInputs = [qt6.qtbase qt6.qtdeclarative qt6.qtshadertools wayland libxkbcommon libqalculate pipewire aubio libcava fftw lm_sensors];
 
     dontWrapQtApps = true;
     cmakeFlags =
@@ -149,7 +159,7 @@ in
 
     meta = {
       description = "A fluid, morphing shell for your Linux desktop";
-      homepage = "https://github.com/caelestia-dots/shell";
+      homepage = "https://github.com/evoziosk/caelestia-shell-mango";
       license = lib.licenses.gpl3Only;
       mainProgram = "caelestia-shell";
     };

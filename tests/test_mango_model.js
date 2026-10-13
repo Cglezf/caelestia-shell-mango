@@ -1,0 +1,17 @@
+const fs = require('fs');
+const vm = require('vm');
+const assert = require('assert');
+const source = fs.readFileSync('utils/MangoModel.js', 'utf8').replace('.pragma library', '');
+const model = {};
+vm.createContext(model);
+vm.runInContext(source, model);
+assert.notEqual(model.workspaceId(0, 1), model.workspaceId(1, 1));
+assert.equal(model.workspaceId(0, 0), -1);
+assert.equal(model.workspaceId(1, 0), -2);
+assert.equal(model.clientAddress(31), '0x1f');
+assert.equal(model.selectorId('pin address:0x1f'), 31);
+assert(model.onTag({monitor:'DP-1', tags:[1,3]}, 'DP-1', 3));
+assert(!model.onTag({monitor:'DP-1', tags:[1,3]}, 'eDP-1', 3));
+assert(model.specialVisible([{monitor:'DP-1', tags:[0], is_visible:true}], 'DP-1'));
+assert(!model.specialVisible([{monitor:'DP-1', tags:[0], is_visible:false}], 'DP-1'));
+console.log('Monitor/tag identity, multitag membership, selectors, and special visibility: passed');

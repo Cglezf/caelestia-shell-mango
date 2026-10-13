@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Window
 import QtQuick.Controls
 import QtQuick.Effects
 import Quickshell
@@ -28,7 +29,7 @@ StyledWindow {
             const specialName = monitor?.lastIpcObject.specialWorkspace?.name;
             if (!specialName)
                 return false;
-            const specialWs = Hypr.workspaces.values.find(ws => ws.name === specialName);
+            const specialWs = Hypr.workspaces.values.find(ws => ws.name === specialName && ws.monitor === root.monitor);
             return specialWs?.toplevels.values.some(t => t.lastIpcObject.fullscreen > 1) ?? false;
         }
         return hasFullscreenOnNormalWs;
@@ -64,6 +65,25 @@ StyledWindow {
         panels.popouts.close();
     }
 
+    // Mango applies layer rules when a surface is created. Recreate only the
+    // native surface after a changed rule; QML drawer and input state survives.
+    property bool refreshingLayerRules: false
+    visible: !refreshingLayerRules
+
+    Connections {
+        target: Mango
+        function onLayerRulesChanged(): void {
+            root.refreshingLayerRules = true;
+            layerRefreshTimer.restart();
+        }
+    }
+
+    Timer {
+        id: layerRefreshTimer
+        interval: 30
+        onTriggered: root.refreshingLayerRules = false
+    }
+
     name: "drawers"
     WlrLayershell.exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: (fsTransitionProg > 0 && contentItem.Config.general.showOverFullscreen) || (hasSpecialWorkspace && hasFullscreenOnNormalWs) ? WlrLayer.Overlay : WlrLayer.Top
@@ -71,7 +91,7 @@ StyledWindow {
     // drawer must acquire the seat immediately, including when opened by IPC.
     WlrLayershell.keyboardFocus: (screenState.launcher && contentItem.Config.launcher.enabled) || (screenState.session && contentItem.Config.session.enabled) ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    mask: hasFullscreen ? emptyRegion : regions
+    mask: hasFullscreen ? emptyRegion : focusGrab.active ? modalRegion : regions
 
     anchors.top: true
     anchors.bottom: true
@@ -84,6 +104,12 @@ StyledWindow {
 
     Behavior on surfaceColour {
         CAnim {}
+    }
+
+    Region {
+        id: modalRegion
+        width: root.width
+        height: root.height
     }
 
     Region {
@@ -110,7 +136,7 @@ StyledWindow {
         win: root
     }
 
-    // HyprlandFocusGrab - Disabled for MangoWC
+    // Native modal input regions and layer-shell focus replace HyprlandFocusGrab.
     Item {
         id: focusGrab
 
@@ -120,6 +146,8 @@ StyledWindow {
             if ((s.launcher && conf.launcher.enabled) || (s.session && conf.session.enabled) || (s.sidebar && conf.sidebar.enabled))
                 return true;
             if (!conf.dashboard.showOnHover && s.dashboard && conf.dashboard.enabled)
+                return true;
+            if (panels.popouts.isDetached || (panels.popouts.hasCurrent && panels.popouts.currentName === "wirelesspassword"))
                 return true;
             if (panels.popouts.currentName.startsWith("traymenu") && (panels.popouts.current as StackView)?.depth > 1)
                 return true;
@@ -253,6 +281,7 @@ StyledWindow {
         bar: bar
         borderThickness: root.borderLayoutThickness
         fullscreen: root.hasFullscreen
+        suspendInteractions: root.refreshingLayerRules
 
         Panels {
             id: panels

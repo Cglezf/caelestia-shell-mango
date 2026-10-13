@@ -23,11 +23,7 @@ Singleton {
     property bool loaded
 
     function hasFullscreen(): bool {
-        for (const monitor of Hypr.monitors) {
-            if (monitor?.activeWorkspace?.toplevels.values.some(t => t.lastIpcObject.fullscreen > 1))
-                return true;
-        }
-        return false;
+        return Hypr.toplevels.values.some(t => t.lastIpcObject.visible && t.lastIpcObject.fullscreen > 1);
     }
 
     function shouldShowPopup(): bool {

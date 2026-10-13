@@ -18,6 +18,7 @@ CustomMouseArea {
     required property real borderThickness
     required property bool fullscreen
 
+    property bool suspendInteractions: false
     property point dragStart
     property bool dashboardShortcutActive
     property bool osdShortcutActive
@@ -51,6 +52,12 @@ CustomMouseArea {
         return y > height - Math.max(Config.border.minThickness, Config.border.thickness + panelHeight) - (isCorner ? Config.border.rounding : 0) && withinPanelWidth(panel, x, y);
     }
 
+    function inPanelBounds(panel: Item, x: real, y: real): bool {
+        if (!panel || !panel.visible) return false;
+        const point = panel.mapFromItem(root, x, y);
+        return panel.contains(point);
+    }
+
     function onWheel(event: WheelEvent): void {
         if (fullscreen)
             return;
@@ -75,13 +82,24 @@ CustomMouseArea {
                                             (root.screenState.dashboard && inTopPanel(panels.dashboard, x, y)) ||
                                             (root.screenState.session && inRightPanel(panels.session, x, y)) ||
                                             (root.screenState.sidebar && inRightPanel(panels.sidebar, x, y)) ||
-                                            (root.screenState.osd && inRightPanel(panels.osd, x, y));
+                                            (root.screenState.osd && inRightPanel(panels.osd, x, y)) ||
+                                            ((root.popouts.hasCurrent || root.popouts.isDetached) && inPanelBounds(panels.popoutsWrapper, x, y)) ||
+                                            inPanelBounds(panels.notifications, x, y);
 
-        // If we are not interacting with any visible shell surface, let the click pass to the underlying window
-        if (!interactingWithBar && !interactingWithVisiblePanel)
-            event.accepted = false;
+        if (!interactingWithBar && !interactingWithVisiblePanel) {
+            const hadModal = root.screenState.launcher || root.screenState.session || root.screenState.sidebar ||
+                (!Config.dashboard.showOnHover && root.screenState.dashboard) || root.popouts.hasCurrent || root.popouts.isDetached;
+            root.screenState.launcher = false;
+            root.screenState.session = false;
+            root.screenState.sidebar = false;
+            if (!Config.dashboard.showOnHover)
+                root.screenState.dashboard = false;
+            root.popouts.close();
+            event.accepted = hadModal;
+        }
     }
     onContainsMouseChanged: {
+        if (suspendInteractions) return;
         if (!containsMouse) {
             // Mouse left the input region - hide panels if not in shortcut mode
             if (!osdShortcutActive) {

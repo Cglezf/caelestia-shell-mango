@@ -44,7 +44,7 @@ MouseArea {
         if (wsId === undefined)
             return [];
 
-        return Hypr.toplevelsForWs(wsId).sort((a, b) => {
+        return Hypr.toplevels.values.filter(t => t.monitor === mon && t.lastIpcObject.visible).sort((a, b) => {
             // Pinned first, then fullscreen, then floating, then any other
             const ac = a?.lastIpcObject;
             const bc = b?.lastIpcObject;

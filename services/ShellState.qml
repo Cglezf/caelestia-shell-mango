@@ -7,57 +7,54 @@ import qs.components
 import qs.services
 
 Singleton {
+    id: root
     property ShellRoot shellRoot
+    property var stateCache: new Map()
+    property var componentCache: new Map()
 
     function anySidebarOpen(): bool {
-        return states.instances.some(s => s.sidebar);
+        return Screens.screens.some(screen => forScreen(screen).sidebar);
     }
 
     function forScreen(screen: ShellScreen): ScreenState {
-        for (const s of states.instances)
-            if (s.modelData === screen)
-                return s;
-        return null;
+        if (!screen) return fallbackState;
+        let state = stateCache.get(screen.name);
+        if (!state) {
+            state = stateFactory.createObject(root, { modelData: screen });
+            stateCache.set(screen.name, state);
+        } else if (state.modelData !== screen) {
+            state.modelData = screen;
+        }
+        return state;
+    }
+
+    function activeScreen(): var {
+        return Screens.screens.find(s => s.name === Hypr.focusedMonitor?.name) ?? Screens.screens[0] ?? null;
     }
 
     function forActive(): ScreenState {
-        const mon = Hypr.focusedMonitor;
-        for (const s of states.instances)
-            if (Hypr.monitorFor(s.modelData) === mon)
-                return s;
-        return null;
+        return forScreen(activeScreen());
     }
 
     function componentsFor(screen: ShellScreen): Components {
-        for (const c of components.instances)
-            if (c.modelData === screen)
-                return c;
-        return null;
+        if (!screen) return null;
+        let components = componentCache.get(screen.name);
+        if (!components) {
+            components = componentFactory.createObject(root, { modelData: screen });
+            componentCache.set(screen.name, components);
+        } else if (components.modelData !== screen) {
+            components.modelData = screen;
+        }
+        return components;
     }
 
     function componentsForActive(): Components {
-        const mon = Hypr.focusedMonitor;
-        for (const c of components.instances)
-            if (Hypr.monitorFor(c.modelData) === mon)
-                return c;
-        return null;
+        return componentsFor(activeScreen());
     }
 
-    Variants {
-        id: states
-
-        model: Screens.screens
-
-        ScreenState {}
-    }
-
-    Variants {
-        id: components
-
-        model: Screens.screens
-
-        Components {}
-    }
+    ScreenState { id: fallbackState; modelData: null }
+    Component { id: stateFactory; ScreenState {} }
+    Component { id: componentFactory; Components {} }
 
     component Components: QtObject {
         required property ShellScreen modelData

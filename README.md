@@ -39,7 +39,7 @@ Every contribution helps keep this project maintained and supports future improv
 - **MangoWC Integration**: Complete rewrite of the compositor backend to use MangoWC's `mmsg` IPC instead of Hyprland's socket protocol
 - **Window Management**: Workspace, monitor, and client state comes from persistent `mmsg watch` streams. Mango objects replace Hyprland-specific QML types.
 - **Input Masking**: Carefully tuned Region-based input masks to maintain click-through transparency on the desktop while keeping panels and bars interactive
-- **Blur Control**: Mango controls compositor blur. Caelestia's automatic Hyprland blur-rule updates are not translated; the no-blur rule below is optional.
+- **Blur Control**: Caelestia translates transparency changes into a managed Mango drawer blur rule. Changed rules recreate the native drawer surface while keeping panel state and typing focus.
 - **Feature Adaptation**: Direct `gpu-screen-recorder` integration with MangoWC monitor output, plus native window previews through `grim -T`.
 
 ### Recent fixes
@@ -48,11 +48,20 @@ Every contribution helps keep this project maintained and supports future improv
 - Workspace indicators respect the compositor's tag count; window occupancy uses Mango client data.
 - Fullscreen notification checks accept Mango monitor objects, and drawer clicks use the current screen state.
 - The launcher acquires keyboard focus on open and refocuses search on subsequent opens. Focus requests wait for the Wayland window to be active and skip an already focused field. Mango keybinding examples call Quickshell directly.
+- Transparency settings synchronize Mango drawer blur through a managed config fragment, with optional alpha-threshold translation when supported by the compositor.
 - The network password dialog uses the current appearance tokens instead of the removed `Appearance` singleton.
 - Missing application icons use a checked theme fallback or bundled application icon, including when `image-missing` itself is unavailable. Network tray icons retain a bundled network fallback.
 - A missing `~/.face` keeps the dashboard and lock screen's person icon visible without repeated image warnings.
 - First launch saves the built-in colour palette when `scheme.json` is missing. The launcher creates its database directory and falls back to memory if persistent storage cannot be opened.
-- Native window previews use Mango's `foreign_toplevel_id` and `grim -T`, refresh while visible, and stop when closed. Hyprland special-workspace click actions remain disabled.
+- Native window previews use Mango's `foreign_toplevel_id` and `grim -T`, refresh while visible, and stop when closed.
+- Each output has stable monitor objects and unique workspace IDs. Hotplug creates screen state synchronously and tolerates disappearing screens; cross-output workspace and window moves use native Mango commands.
+- Pin/unpin maps to Mango global windows. The native special-tag overlay is exposed in the workspace UI and window move controls.
+- Keyboard layouts come from the Wayland keymap; layout selection uses Mango's one-based switch command. Caps Lock and Num Lock use keyboard modifiers and Linux LED state.
+- Game mode translates animation, blur, shadow, gap, border, rounding, and tearing settings into Mango options and restores the configured values when disabled.
+- Original shell shortcut actions are exposed through a native IPC registry, and the bundled Mango bindings include screenshot, sidebar, session, game-mode, nexus, and idle-inhibition actions.
+- Outside clicks dismiss modal drawers and detached popouts; clicks inside their controls remain interactive.
+- Wallpaper selection and persistence work without caelestia-cli; the CLI adds dynamic colour generation when installed.
+- Nix packaging and Home Manager now use Mango and the required capture/keyboard dependencies instead of Hyprland.
 
 ### What Still Works?
 
@@ -71,11 +80,11 @@ The following features are available:
 - ✅ Wallpaper management
 - ✅ Color scheme switching
 
-### What Doesn't Work (Yet)?
+### Current limits
 
 - Live window previews require Mango to expose `foreign_toplevel_id` and a version of `grim` with `-T` support. Older versions retain the preview fallback.
-- Hyprland-style special workspaces are not implemented by this adapter.
-- The compositor adapter currently uses the focused monitor for every screen. Full per-monitor workspace tracking is still limited.
+- Mango has one native special-tag overlay per output. It does not provide independent Hyprland-style named special workspaces; the adapter exposes the native overlay as `special:special`.
+- Alpha-threshold blur rules depend on the installed Mango version; older builds use their native transparency mask. The remaining Qt text-input warning is documented below.
 - Notifications require Caelestia to own `org.freedesktop.Notifications`; another running notification server can prevent registration.
 
 ## Components
@@ -96,24 +105,15 @@ Also huge thanks to:
 ## Installation
 
 > [!IMPORTANT]
-> This MangoWC port requires manual installation. The AUR package and Nix flake from the original project are **not compatible** with this fork as they're designed for Hyprland.
+> Build this fork, or use its Nix flake. The upstream AUR shell package targets Hyprland and will not install these Mango changes. The Nix definitions have been adapted, but have not been built in the current Arch test environment.
 
 ### Prerequisites for MangoWC
 
 Before installing the shell, make sure you have MangoWC properly set up:
 
 1. **MangoWC Compositor**: Install and configure MangoWC ([GitHub repo](https://github.com/mangowm/mango))
-2. **Optional blur rule**: You do not need to disable Mango blur to install or run Caelestia.
-   To keep Caelestia surfaces unblurred while retaining blur on other apps, add this to
-   `~/.config/mango/config.conf` (or a rules file sourced by it):
-   ```ini
-   layer_rule=layer_name:caelestia.*,no_blur:1
-   ```
-   Omit this rule if you want compositor blur on the shell. Mango's `blur` and `blur_layer` settings
-   control whether it is enabled; layer rules also support `blur_ignore_alpha` for transparent areas.
-   This port does not currently synchronize Caelestia's transparency settings with Mango blur rules.
-   See the [Mango layer-rule reference](https://mangowm.github.io/docs/window-management/rules/)
-   and [blur settings](https://mangowm.github.io/docs/visuals/effects/).
+2. **Blur**: Disabling Mango blur is not an installation requirement. To let Caelestia manage
+   drawer blur, follow [automatic blur integration](#automatic-blur-integration) after installation.
 
 ### Manual Installation (MangoWC)
 
@@ -122,6 +122,8 @@ Dependencies:
 -   [`caelestia-cli`](https://github.com/caelestia-dots/cli) (optional but recommended)
 -   [`quickshell-git`](https://git.outfoxxed.me/quickshell/quickshell) - **must be the git version**, not the latest tagged version
 -   `mangowc` - The MangoWC compositor with `mmsg` IPC support
+-   `python` (Python 3.11 or newer, for Mango config helpers)
+-   `wayland` and `libxkbcommon` (native keyboard state)
 -   `glibc`
 -   `gcc-libs`
 -   [`ddcutil`](https://github.com/rockowitz/ddcutil)
@@ -220,10 +222,63 @@ Or if using caelestia-cli:
 exec_once= caelestia shell -d
 ```
 
+### Automatic blur integration
+
+Run this once **inside your Mango session**, after installing the shell:
+
+```sh
+python3 /etc/xdg/quickshell/caelestia/assets/mango_blur.py --setup --enabled 0 --alpha 0.85
+```
+
+The helper backs up an existing `~/.config/mango/config.conf` to `config.conf.before-caelestia-blur`,
+enables Mango's `blur` and `blur_layer`, replaces this fork's exact legacy `caelestia.*` no-blur rule,
+and sources a generated fragment at `${XDG_STATE_HOME:-$HOME/.local/state}/caelestia/mango-blur.conf`.
+It preserves other config entries. With no user config, it sources `/etc/mango/config.conf` first.
+The setup command targets writable `.conf` files. For TOML or Home Manager/symlink-managed configs,
+add `blur=1`, `blur_layer=1`, and the generated fragment to your existing global source list declaratively
+instead of running setup. Create the fragment initially with the rule below, then the shell maintains it:
+
+```ini
+layer_rule=layer_name:^caelestia-drawers$,no_blur:1
+```
+
+Set `CAELESTIA_MANGO_CONFIG` in the shell's environment if Mango uses a config outside the default
+`~/.config/mango/config.conf` or `config.toml` paths.
+Enabling the global blur switches can also enable blur for other apps allowed by your Mango rules.
+
+Caelestia's transparency is disabled by default. Enable it in `~/.config/caelestia/shell.json`
+(merge this into your existing settings):
+
+```json
+{
+    "appearance": {
+        "transparency": {
+            "enabled": true,
+            "base": 0.85,
+            "layers": 0.4
+        }
+    }
+}
+```
+
+Once the updated shell is running, it translates transparency on/off to the drawer's `no_blur` rule,
+coalesces setting changes, and reloads Mango only when the generated rule changes. Mango applies
+layer rules at surface creation, so the shell briefly recreates its native drawer surface while
+keeping QML panel state. Do not edit the generated fragment; the shell maintains it.
+
+If the installed Mango supports `blur_ignore_alpha`, the helper also translates the base opacity
+into `max(0, base - 0.03)`. Older Mango builds lack that option and use their native transparency mask;
+they do not receive an unsupported rule. Alpha-threshold behavior is therefore version-dependent.
+See [Mango's layer rules](https://mangowm.github.io/docs/window-management/rules/).
+
+To disable the integration, remove the marked `CAELESTIA BLUR` block from your Mango config and reload
+Mango. Runtime synchronization skips configs that do not source its fragment. Restore your previous
+global blur settings if desired.
+
 ### Shortcuts/IPC
 
 > [!NOTE]
-> MangoWC doesn't support Hyprland's global shortcuts via DBus. You'll need to configure keybinds directly in your MangoWC config using `mmsg` commands or by invoking the caelestia CLI.
+> Mango bindings invoke Quickshell IPC. Original shell actions are also available with `qs ipc -c caelestia call shortcuts trigger <name>`; list them with `qs ipc -c caelestia call shortcuts list`.
 
 The shell does not automatically register Mango keybindings. Add these to `~/.config/mango/config.conf`:
 
@@ -247,6 +302,16 @@ If you prefer only Super+Space, omit the two `bindr` lines.
 If you have no user config and Mango uses `/etc/mango/config.conf`, preserve those defaults by starting
 `~/.config/mango/config.conf` with `source=/etc/mango/config.conf`, then add the bindings above.
 The launcher requests keyboard focus and focuses its search field whenever opened, including through IPC.
+Clicking outside a modal drawer or detached popout closes it; that dismissal click is consumed by the shell.
+The bundled bindings use Super+Ctrl+I for idle inhibition, preserving Mango's default Super+Shift+I restore-minimized action.
+
+For a systemd-started shell, import the compositor environment from your Mango session before starting it:
+
+```ini
+exec_once=dbus-update-activation-environment --systemd WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP MANGO_INSTANCE_SIGNATURE
+```
+
+This gives the service access to Mango's IPC socket and the correct Wayland display.
 
 All IPC commands can be accessed via `caelestia shell ...` if you have caelestia-cli installed. For example:
 
@@ -1059,7 +1124,10 @@ Per-monitor token overrides are also available at
 
 ### Home Manager Module
 
-The following Home Manager example is inherited from upstream. It does not install this Mango fork; the upstream package targets Hyprland. Use the manual build instructions above for this port.
+This fork's flake provides a Mango package and Home Manager module. Add this repository as a flake input
+and import its `homeManagerModules.default`. The module exposes the named `quickshell/caelestia` config,
+so bundled IPC keybindings can find the running shell. Configure Mango separately and import the session
+environment as shown above. Nix packaging changes have not been built here because Nix is unavailable.
 
 <details><summary><code>home.nix</code></summary>
 
@@ -1089,7 +1157,7 @@ programs.caelestia = {
 };
 ```
 
-The upstream module can configure upstream Caelestia and its optional CLI; Mango-specific packaging would need to use this fork.
+The module installs this fork's shell package. Its CLI support remains optional.
 
 </details>
 
@@ -1176,13 +1244,36 @@ caelestia wallpaper -f <path_to_wallpaper>
 caelestia scheme set -n dynamic
 ```
 
-Without caelestia-cli, you can use the launcher (Super + Space) to search for wallpapers and schemes!
+Without caelestia-cli, wallpaper selection still works and persists. Dynamic scheme generation requires the CLI.
 
 ### My wallpapers aren't showing up in the launcher!
 
 The launcher pulls wallpapers from `~/Pictures/Wallpapers` by default. You can change this in the config. Additionally,
 the launcher only shows an odd number of wallpapers at one time. If you only have 2 wallpapers, consider getting more
 (or just putting one).
+
+## Validation
+
+Checks completed on Mango 0.18.0 and the installed Quickshell/Qt stack:
+
+- Build and native keyboard tests covering two layouts, layout-group changes, Caps Lock, and Num Lock.
+- Native pin/unpin on a disposable window, repeated workspace switching, special-overlay move/return,
+  and cross-output moves using a temporary virtual output.
+- Multi-output hotplug, unique workspace IDs, focused-screen routing, and shortcut registry discovery.
+- Game-mode gap changes confirmed through window geometry and restored to configured values.
+- Real pointer clicks inside the launcher and outside the launcher/detached window-info popout.
+- Live blur enable/disable updates, native surface recreation, and preserved launcher state/focus.
+- Native window capture, missing-icon fallbacks, and first-open/reopen launcher focus.
+
+Run the deterministic Python and JavaScript checks from the repository:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_*.py'
+node tests/test_mango_model.js
+```
+
+`tests/test_keyboardstate.cpp` also tests the compiled keyboard component with synthetic XKB keymaps.
+Nix builds and every hardware-specific configuration have not been verified in this environment.
 
 ## Credits & Appreciation
 

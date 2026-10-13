@@ -21,7 +21,7 @@ Singleton {
     property bool appleDisplayPresent: false
 
     function getMonitorForScreen(screen: ShellScreen): var {
-        return monitors.find(m => m.modelData === screen); // qmllint disable missing-property
+        return screen ? (monitors.find(m => m.modelData === screen) ?? null) : null; // qmllint disable missing-property
     }
 
     function getMonitor(query: string): var {
@@ -165,10 +165,10 @@ Singleton {
         id: monitor
 
         required property ShellScreen modelData
-        readonly property var ddcInfo: root.ddcMonitorMap[modelData.name] ?? null
+        readonly property var ddcInfo: root.ddcMonitorMap[modelData?.name ?? ""] ?? null
         readonly property bool isDdc: ddcInfo !== null
         readonly property string busNum: ddcInfo?.busNum ?? ""
-        readonly property bool isAppleDisplay: root.appleDisplayPresent && modelData.model.startsWith("StudioDisplay")
+        readonly property bool isAppleDisplay: root.appleDisplayPresent && (modelData?.model?.startsWith("StudioDisplay") ?? false)
         property real brightness
         property real queuedBrightness: NaN
 

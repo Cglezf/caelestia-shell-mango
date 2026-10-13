@@ -20,28 +20,18 @@ StyledClippingRect {
     readonly property int activeWsId: monitor?.activeWorkspace?.id ?? 1
     readonly property int activeWsIdx: workspaceIndex(activeWsId)
 
-    // Don't offer more indicators than the compositor actually has tags, and
-    // never let the last group run past the end of the tag list.
-    readonly property int tagCount: Math.max(1, Hypr.workspaces.values.length)
+    readonly property var normalWorkspaceIds: Hypr.workspaces.values.filter(w => w.id > 0 && (!Config.bar.workspaces.perMonitor || w.monitor === root.monitor)).map(w => w.id)
+    readonly property int tagCount: Math.max(1, normalWorkspaceIds.length)
     readonly property int shown: Math.min(Math.max(1, Config.bar.workspaces.shown), tagCount)
-
     readonly property var wsIds: {
-        if (Config.bar.workspaces.showUnoccupied)
-            return Array.from({
-                length: shown
-            }, (_, i) => i + 1);
-
-        const allMonitors = !Config.bar.workspaces.perMonitor;
-        const ignoredTags = GlobalConfig.bar.workspaces.ignoredTags;
-        const workspaces = Hypr.workspaces.values.filter(w => w.id > 0 && (allMonitors || w.monitor === root.monitor) && (w.id === activeWsId || w.toplevels.values.some(t => !Hypr.isToplevelIgnored(t, ignoredTags))));
-        const currentIdx = workspaces.findIndex(w => w.id === activeWsId);
-        if (currentIdx < 0)
-            return [];
-
-        const end = CUtils.clamp(currentIdx + 1, Math.min(shown, workspaces.length), workspaces.length);
-        const start = Math.max(0, end - shown);
-
-        return workspaces.slice(start, end).map(w => w.id);
+        const ids = Config.bar.workspaces.showUnoccupied ? normalWorkspaceIds : Hypr.workspaces.values.filter(w =>
+            w.id > 0 && (!Config.bar.workspaces.perMonitor || w.monitor === root.monitor) &&
+            (w.id === activeWsId || w.toplevels.values.some(t => !Hypr.isToplevelIgnored(t, GlobalConfig.bar.workspaces.ignoredTags)))).map(w => w.id);
+        const current = Math.max(0, ids.indexOf(activeWsId));
+        const start = Config.bar.workspaces.showUnoccupied
+            ? Math.min(Math.floor(current / shown) * shown, Math.max(0, ids.length - shown))
+            : Math.max(0, Math.min(current + 1, ids.length) - shown);
+        return ids.slice(start, start + shown);
     }
 
     readonly property var workspaces: {
@@ -49,23 +39,10 @@ StyledClippingRect {
         return wsIds.map(id => workspaces.itemAtIndex(workspaceIndex(id)));
     }
 
-    // Only relevant for when showUnoccupied is true
-    readonly property int groupOffset: {
-        if (!Config.bar.workspaces.showUnoccupied)
-            return 0;
-        return Math.min(Math.floor((activeWsId - 1) / shown) * shown, Math.max(0, tagCount - shown));
-    }
-
     property real blur: onSpecial ? 1 : 0
 
     function workspaceIndex(id: int): int {
-        if (!Config.bar.workspaces.showUnoccupied)
-            return wsIds.indexOf(id);
-
-        let index = id - 1 - groupOffset;
-        while (index < 0)
-            index += shown;
-        return index % shown;
+        return wsIds.indexOf(id);
     }
 
     implicitWidth: Tokens.sizes.bar.innerWidth
@@ -125,7 +102,7 @@ StyledClippingRect {
 
             delegate: Workspace {
                 activeWsId: root.activeWsId
-                ws: Config.bar.workspaces.showUnoccupied ? root.groupOffset + index + 1 : modelData
+                ws: modelData
                 monitor: root.monitor
 
                 displayType: Config.bar.workspaces.displayType

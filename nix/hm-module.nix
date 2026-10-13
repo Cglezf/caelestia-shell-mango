@@ -7,7 +7,7 @@ self: {
   inherit (pkgs.stdenv.hostPlatform) system;
 
   cli-default = self.inputs.caelestia-cli.packages.${system}.default;
-  shell-default = self.packages.${system}.with-cli;
+  shell-default = self.packages.${system}.default;
 
   cfg = config.programs.caelestia;
 in {
@@ -123,6 +123,7 @@ in {
           ];
         shouldGenerate = c: c.extraConfig != "" || c.settings != {};
       in {
+        "quickshell/caelestia".source = "${shell}/share/caelestia-shell";
         "caelestia/shell.json" = lib.mkIf (shouldGenerate cfg) {
           text = mkConfig cfg;
         };

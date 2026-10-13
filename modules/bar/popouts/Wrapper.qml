@@ -91,21 +91,13 @@ Item {
         onDetachRequested: mode => root.detach(mode)
     }
 
-    // HyprlandFocusGrab - Disabled for MangoWC
-    Item {
-        property bool active: root.isDetached
-        // property var windows: [QsWindow.window]  // Not used
-        signal cleared()
-        
-        // Manual close would need to be implemented differently
-    }
-
+    // Layer-shell owns keyboard focus for detached views and input popouts.
     Binding {
         when: root.isDetached || (root.hasCurrent && root.currentName === "wirelesspassword")
 
         target: QsWindow.window
         property: "WlrLayershell.keyboardFocus"
-        value: WlrKeyboardFocus.OnDemand
+        value: WlrKeyboardFocus.Exclusive
     }
 
     Comp {

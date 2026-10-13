@@ -14,6 +14,7 @@ ColumnLayout {
     property bool moveToWsExpanded
 
     anchors.fill: parent
+    enabled: !!client
     spacing: Tokens.spacing.small
 
     RowLayout {
@@ -88,20 +89,20 @@ ColumnLayout {
         }
 
         Repeater {
-            model: 10
+            model: Hypr.workspaces.values.filter(w => w.id > 0 && w.monitor === (root.client?.monitor ?? Hypr.focusedMonitor))
 
             Button {
-                required property int index
-                readonly property int wsId: Math.floor((Hypr.activeWsId - 1) / 10) * 10 + index + 1
+                required property var modelData
+                readonly property int wsId: modelData.id
                 readonly property bool isCurrent: root.client?.workspace.id === wsId
 
                 onClicked: {
-                    Hypr.dispatch(Hypr.usingLua ? `hl.dsp.window.move({ window = "address:0x${root.client?.address}", workspace = "${wsId}", follow = true })` : `movetoworkspace ${wsId},address:0x${root.client?.address}`);
+                    Hypr.dispatch(Hypr.usingLua ? `hl.dsp.window.move({ window = "address:${root.client?.address}", workspace = "${wsId}", follow = true })` : `movetoworkspace ${wsId},address:${root.client?.address}`);
                 }
 
                 color: isCurrent ? Colours.tPalette.m3surfaceContainerHighest : Colours.palette.m3tertiaryContainer
                 onColor: isCurrent ? Colours.palette.m3onSurface : Colours.palette.m3onTertiaryContainer
-                text: wsId
+                text: modelData.name
                 disabled: isCurrent
             }
         }
@@ -119,7 +120,7 @@ ColumnLayout {
             color: Colours.palette.m3secondaryContainer
             onColor: Colours.palette.m3onSecondaryContainer
             text: root.client?.lastIpcObject.floating ? Tr.tr("Tile") : Tr.tr("Float")
-            onClicked: Hypr.dispatch(Hypr.usingLua ? `hl.dsp.window.float({ window = "address:0x${root.client?.address}" })` : `togglefloating address:0x${root.client?.address}`)
+            onClicked: Hypr.dispatch(Hypr.usingLua ? `hl.dsp.window.float({ window = "address:${root.client?.address}" })` : `togglefloating address:${root.client?.address}`)
         }
 
         Loader {
@@ -133,15 +134,22 @@ ColumnLayout {
                 color: Colours.palette.m3secondaryContainer
                 onColor: Colours.palette.m3onSecondaryContainer
                 text: root.client?.lastIpcObject.pinned ? Tr.tr("Unpin") : Tr.tr("Pin")
-                onClicked: Hypr.dispatch(Hypr.usingLua ? `hl.dsp.window.pin({ window = "address:0x${root.client?.address}" })` : `pin address:0x${root.client?.address}`)
+                onClicked: Hypr.dispatch(Hypr.usingLua ? `hl.dsp.window.pin({ window = "address:${root.client?.address}" })` : `pin address:${root.client?.address}`)
             }
+        }
+
+        Button {
+            color: Colours.palette.m3secondaryContainer
+            onColor: Colours.palette.m3onSecondaryContainer
+            text: root.client?.workspace.id < 0 ? Tr.tr("Return from special") : Tr.tr("Move to special")
+            onClicked: Hypr.dispatch(`tag_special_tag address:${root.client?.address}`)
         }
 
         Button {
             color: Colours.palette.m3errorContainer
             onColor: Colours.palette.m3onErrorContainer
             text: Tr.tr("Kill")
-            onClicked: Hypr.dispatch(Hypr.usingLua ? `hl.dsp.window.kill({ window = "address:0x${root.client?.address}" })` : `killwindow address:0x${root.client?.address}`)
+            onClicked: Hypr.dispatch(Hypr.usingLua ? `hl.dsp.window.kill({ window = "address:${root.client?.address}" })` : `killwindow address:${root.client?.address}`)
         }
     }
 

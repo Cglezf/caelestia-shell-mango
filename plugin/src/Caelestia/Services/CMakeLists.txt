@@ -20,7 +20,11 @@ qml_module(caelestia-services
         networkusage.cpp
         hyprdevices.cpp
         hyprextras.cpp
+        keyboardstate.cpp
     LIBRARIES
+        PkgConfig::WaylandClient
+        PkgConfig::XkbCommon
+        Qt::Gui
         Qt::Concurrent
         Qt::DBus
         Qt::Network

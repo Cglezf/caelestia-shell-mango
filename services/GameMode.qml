@@ -26,22 +26,24 @@ Singleton {
         });
     }
 
+    Component.onCompleted: { if (enabled) setDynamicConfs(); }
+
     onEnabledChanged: {
         if (enabled) {
             setDynamicConfs();
             if (GlobalConfig.utilities.toasts.gameModeChanged)
-                Toaster.toast(Tr.tr("Game mode enabled"), Tr.tr("Disabled Hyprland animations, blur, gaps and shadows"), "gamepad");
+                Toaster.toast(Tr.tr("Game mode enabled"), Tr.tr("Disabled compositor animations, blur, gaps and shadows"), "gamepad");
         } else {
             Hypr.extras.message("reload");
             if (GlobalConfig.utilities.toasts.gameModeChanged)
-                Toaster.toast(Tr.tr("Game mode disabled"), Tr.tr("Hyprland settings restored"), "gamepad");
+                Toaster.toast(Tr.tr("Game mode disabled"), Tr.tr("Compositor settings restored"), "gamepad");
         }
     }
 
     PersistentProperties {
         id: props
 
-        property bool enabled: Hypr.options["animations:enabled"] === 0 // qmllint disable missing-property
+        property bool enabled: false
 
         reloadableId: "gameMode"
     }

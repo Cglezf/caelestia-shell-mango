@@ -1,5 +1,5 @@
 {
-  description = "Desktop shell for Caelestia dots";
+  description = "Caelestia desktop shell for Mango";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
@@ -39,6 +39,7 @@
     in rec {
       caelestia-shell = pkgs.callPackage ./nix {
         rev = self.rev or self.dirtyRev;
+        mango = pkgs.mango or pkgs.mangowc;
         stdenv = pkgs.clangStdenv;
         quickshell = inputs.quickshell.packages.${system}.default.override {
           withX11 = false;

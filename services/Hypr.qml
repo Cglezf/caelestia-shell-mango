@@ -12,7 +12,7 @@ QtObject {
     readonly property var workspaces: Services.Mango.workspaces
     readonly property var monitors: Services.Mango.monitors
     readonly property bool usingLua: false
-    readonly property bool supportsSpecialWorkspaces: false
+    readonly property bool supportsSpecialWorkspaces: true
 
     readonly property var activeToplevel: Services.Mango.activeToplevel
     readonly property var focusedWorkspace: Services.Mango.focusedWorkspace
@@ -95,7 +95,7 @@ QtObject {
     }
 
     function toplevelsForWs(ws: int, ignoredTags = []): var {
-        return toplevels.values.filter(t => t.workspace && t.workspace.id === ws && !isToplevelIgnored(t, ignoredTags));
+        return workspaces.values.find(w => w.id === ws)?.toplevels.values.filter(t => !isToplevelIgnored(t, ignoredTags)) ?? [];
     }
 
     function isToplevelIgnored(toplevel, ignoredTags = []): bool {
@@ -104,6 +104,14 @@ QtObject {
             return true;
 
         return ipc.tags?.some(tag => ignoredTags.includes(tag.replace(/\*$/, ""))) ?? false;
+    }
+
+    function switchKeyboardLayout(index: int): void {
+        Services.Mango.switchKeyboardLayout(index);
+    }
+
+    function setLayerBlur(enabled: bool, alpha: real): void {
+        Services.Mango.setLayerBlur(enabled, alpha);
     }
 
     function reloadDynamicConfs(): void {

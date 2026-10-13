@@ -25,7 +25,6 @@ Singleton {
     readonly property Transparency transparency: Transparency {}
     readonly property alias wallLuminance: analyser.luminance
 
-    property bool cooldownPending
     property real lastBaseTransparency
 
     function getLuminance(c: color): real {
@@ -82,35 +81,25 @@ Singleton {
         Quickshell.execDetached(["caelestia", "scheme", "set", "--notify", "-m", mode]);
     }
 
-    function reloadHyprRules(): void {
-        let rule, trEnabled;
-        if (Hypr.usingLua) {
-            rule = `eval hl.layer_rule({ match = { namespace = "caelestia-drawers" }, %1 = %2 })`;
-            trEnabled = transparency.enabled;
-        } else {
-            rule = "keyword layerrule %1 %2, match:namespace caelestia-drawers";
-            trEnabled = transparency.enabled ? 1 : 0;
-        }
-        Hypr.extras.batchMessage([rule.arg("blur").arg(trEnabled), rule.arg("ignore_alpha").arg(Math.max(0, transparency.base - 0.03))]);
+    function syncCompositorBlur(): void {
+        Hypr.setLayerBlur(transparency.enabled, transparency.base);
     }
 
-    function requestReloadHyprRules(): void {
-        if (cooldownTimer.running) {
-            root.cooldownPending = true;
-        } else {
-            root.reloadHyprRules();
-            cooldownTimer.restart();
-        }
+    function requestCompositorBlur(): void {
+        blurSyncTimer.restart();
     }
 
-    Component.onCompleted: root.requestReloadHyprRules()
+    Component.onCompleted: requestCompositorBlur()
+
+    Timer {
+        id: blurSyncTimer
+        interval: 250
+        onTriggered: root.syncCompositorBlur()
+    }
 
     Connections {
-        function onConfigReloaded(): void {
-            root.reloadHyprRules();
-        }
-
         target: Hypr
+        function onConfigReloaded(): void { root.requestCompositorBlur(); }
     }
 
     FileView {
@@ -145,23 +134,9 @@ Singleton {
     }
 
     Timer {
-        id: cooldownTimer
-
-        interval: 30
-        onTriggered: {
-            if (root.cooldownPending) {
-                root.cooldownPending = false;
-                root.reloadHyprRules();
-                restart();
-            }
-        }
-    }
-
-    Timer {
         id: cAnimCompleteTimer
-
         interval: Tokens.anim.durations.expressiveSlowEffects
-        onTriggered: root.requestReloadHyprRules()
+        onTriggered: root.requestCompositorBlur()
     }
 
     component Transparency: QtObject {
@@ -171,13 +146,13 @@ Singleton {
 
         onEnabledChanged: {
             if (enabled)
-                root.requestReloadHyprRules();
+                root.requestCompositorBlur();
             else
                 cAnimCompleteTimer.start();
         }
         onBaseChanged: {
             if (root.lastBaseTransparency > base)
-                root.requestReloadHyprRules();
+                root.requestCompositorBlur();
             else
                 cAnimCompleteTimer.start();
             root.lastBaseTransparency = base;

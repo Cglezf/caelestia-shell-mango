@@ -15,6 +15,7 @@ Searcher {
     readonly property list<string> smartArg: GlobalConfig.services.smartScheme ? [] : ["--no-smart"]
     readonly property string fallback: Quickshell.shellPath("assets/wallpaper.webp")
 
+    property bool cliAvailable: false
     property bool showPreview: false
     readonly property string current: showPreview ? previewPath : actualCurrent
     property string previewPath
@@ -30,19 +31,22 @@ Searcher {
     }
 
     function setRandom(): void {
-        Quickshell.execDetached(["caelestia", "wallpaper", "-r", ...smartArg]);
+        if (wallpapers.entries.length)
+            setWallpaper(wallpapers.entries[Math.floor(Math.random() * wallpapers.entries.length)].path);
     }
 
     function setWallpaper(path: string): void {
         actualCurrent = path;
-        Quickshell.execDetached(["caelestia", "wallpaper", "-f", path, ...smartArg]);
+        currentWallpaper.setText(path);
+        if (cliAvailable)
+            Quickshell.execDetached(["caelestia", "wallpaper", "-f", path, ...smartArg]);
     }
 
     function preview(path: string): void {
         previewPath = path;
         showPreview = true;
 
-        if (Colours.scheme === "dynamic")
+        if (cliAvailable && Colours.scheme === "dynamic")
             getPreviewColoursProc.running = true;
     }
 
@@ -82,7 +86,14 @@ Searcher {
         target: "wallpaper"
     }
 
+    Process {
+        command: ["sh", "-c", "command -v caelestia >/dev/null 2>&1"]
+        running: true
+        onExited: code => root.cliAvailable = code === 0
+    }
+
     FileView {
+        id: currentWallpaper
         path: root.currentNamePath
         watchChanges: true
         printErrors: false
@@ -91,7 +102,7 @@ Searcher {
             let wall = text().trim();
             if (!wall) {
                 wall = root.fallback;
-                Quickshell.execDetached(["caelestia", "wallpaper", "-f", root.fallback, ...root.smartArg]);
+                Qt.callLater(() => currentWallpaper.setText(root.fallback));
             }
             root.actualCurrent = wall;
             root.previewColourLock = false;
@@ -99,7 +110,7 @@ Searcher {
         onLoadFailed: {
             root.actualCurrent = root.fallback;
             root.previewColourLock = false;
-            Quickshell.execDetached(["caelestia", "wallpaper", "-f", root.fallback, ...root.smartArg]);
+            Qt.callLater(() => currentWallpaper.setText(root.fallback));
         }
     }
 
