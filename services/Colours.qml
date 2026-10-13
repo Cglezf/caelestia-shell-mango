@@ -15,6 +15,7 @@ Singleton {
     property bool showPreview
     property string scheme
     property string flavour
+    property string variant: "tonalspot"
     readonly property bool light: showPreview ? previewLight : currentLight
     property bool currentLight
     property bool previewLight
@@ -65,6 +66,7 @@ Singleton {
         if (!isPreview) {
             root.scheme = scheme.name;
             flavour = scheme.flavour;
+            variant = scheme.variant ?? "tonalspot";
             currentLight = scheme.mode === "light";
         } else {
             previewLight = scheme.mode === "light";
@@ -78,7 +80,28 @@ Singleton {
     }
 
     function setMode(mode: string): void {
-        Quickshell.execDetached(["caelestia", "scheme", "set", "--notify", "-m", mode]);
+        if (Wallpapers.cliAvailable)
+            Quickshell.execDetached(["caelestia", "scheme", "set", "--notify", "-m", mode]);
+        else
+            generatePalette(Wallpapers.actualCurrent || Wallpapers.fallback, false, mode, variant);
+    }
+
+    function setVariant(value: string): void {
+        if (Wallpapers.cliAvailable)
+            Quickshell.execDetached(["caelestia", "scheme", "set", "-v", value]);
+        else
+            generatePalette(Wallpapers.actualCurrent || Wallpapers.fallback, false, currentLight ? "light" : "dark", value);
+    }
+
+    function generatePalette(image: string, isPreview = false, mode = "", value = ""): void {
+        const generator = isPreview ? previewGenerator : currentGenerator;
+        generator.pending = {
+            image,
+            mode: mode || (currentLight ? "light" : "dark"),
+            variant: value || variant,
+            useCli: isPreview && Wallpapers.cliAvailable
+        };
+        generator.startNext();
     }
 
     function syncCompositorBlur(): void {
@@ -93,13 +116,28 @@ Singleton {
 
     Timer {
         id: blurSyncTimer
+
         interval: 250
         onTriggered: root.syncCompositorBlur()
     }
 
     Connections {
+        function onConfigReloaded(): void {
+            root.requestCompositorBlur();
+        }
+
         target: Hypr
-        function onConfigReloaded(): void { root.requestCompositorBlur(); }
+    }
+
+    PaletteGenerator {
+        id: currentGenerator
+
+        isPreview: false
+    }
+    PaletteGenerator {
+        id: previewGenerator
+
+        isPreview: true
     }
 
     FileView {
@@ -122,8 +160,11 @@ Singleton {
                     colours[name.startsWith("m3") ? name.slice(2) : name] = String(root.current[name]).slice(1);
             }
             Qt.callLater(() => schemeFile.setText(JSON.stringify({
-                name: "default", flavour: "default", mode: "dark", colours
-            })));
+                    name: "default",
+                    flavour: "default",
+                    mode: "dark",
+                    colours
+                })));
         }
     }
 
@@ -135,8 +176,54 @@ Singleton {
 
     Timer {
         id: cAnimCompleteTimer
+
         interval: Tokens.anim.durations.expressiveSlowEffects
         onTriggered: root.requestCompositorBlur()
+    }
+
+    component PaletteGenerator: Process {
+        id: generator
+
+        required property bool isPreview
+        property var pending: null
+        property var job: null
+        property string output
+
+        function startNext(): void {
+            if (running || !pending)
+                return;
+            job = pending;
+            pending = null;
+            output = "";
+            command = job.useCli ? ["caelestia", "wallpaper", "-p", job.image, ...Wallpapers.smartArg] : ["python3", Quickshell.shellPath("assets/mango_palette.py"), job.image, "--mode", job.mode, "--variant", job.variant];
+            running = true;
+        }
+
+        stdout: StdioCollector {
+            onStreamFinished: generator.output = text
+        }
+        stderr: StdioCollector {
+            onStreamFinished: {
+                if (text.trim())
+                    console.warn(text.trim());
+            }
+        }
+        onExited: code => {
+            // Newer requests replace queued work; never display stale previews.
+            if (code === 0 && output && !pending && (!isPreview || (Wallpapers.showPreview && Wallpapers.previewPath === job.image))) {
+                if (isPreview) {
+                    root.load(output, true);
+                    root.showPreview = true;
+                } else {
+                    root.load(output, false);
+                    schemeFile.setText(output);
+                    Wallpapers.previewColourLock = false;
+                }
+            } else if (!isPreview && !pending) {
+                Wallpapers.previewColourLock = false;
+            }
+            Qt.callLater(startNext);
+        }
     }
 
     component Transparency: QtObject {

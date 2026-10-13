@@ -5,13 +5,14 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Caelestia.Config
+import qs.services
 import qs.utils
 
 Searcher {
     id: root
 
-    property string currentScheme
-    property string currentVariant
+    readonly property string currentScheme: `${Colours.scheme} ${Colours.flavour}`
+    readonly property string currentVariant: Colours.variant
 
     function transformSearch(search: string): string {
         return search.slice(`${GlobalConfig.launcher.actionPrefix}scheme `.length);
@@ -22,7 +23,8 @@ Searcher {
     }
 
     function reload(): void {
-        getCurrent.running = true;
+        if (Wallpapers.cliAvailable)
+            getSchemes.running = true;
     }
 
     list: schemes.instances
@@ -33,16 +35,26 @@ Searcher {
     Variants {
         id: schemes
 
+        model: [
+            {
+                name: "dynamic",
+                flavour: "default",
+                colours: {}
+            }
+        ]
+
         Scheme {}
     }
 
     Process {
         id: getSchemes
 
-        running: true
+        running: Wallpapers.cliAvailable
         command: ["caelestia", "scheme", "list"]
         stdout: StdioCollector {
             onStreamFinished: {
+                if (!text.trim())
+                    return;
                 const schemeData = JSON.parse(text);
                 const list = Object.entries(schemeData).map(([name, f]) => Object.entries(f).map(([flavour, colours]) => ({
                                 name,
@@ -60,29 +72,22 @@ Searcher {
         }
     }
 
-    Process {
-        id: getCurrent
-
-        running: true
-        command: ["caelestia", "scheme", "get", "-nfv"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                const [name, flavour, variant] = text.trim().split("\n");
-                root.currentScheme = `${name} ${flavour}`;
-                root.currentVariant = variant;
-            }
-        }
-    }
-
     component Scheme: QtObject {
         required property var modelData
         readonly property string name: modelData.name
         readonly property string flavour: modelData.flavour
-        readonly property var colours: modelData.colours
+        readonly property var colours: Object.keys(modelData.colours).length ? modelData.colours : ({
+                outline: String(Colours.current.m3outline).slice(1),
+                surface: String(Colours.current.m3surface).slice(1),
+                primary: String(Colours.current.m3primary).slice(1)
+            })
 
         function onClicked(list: AppList): void {
             list.screenState.launcher = false;
-            Quickshell.execDetached(["caelestia", "scheme", "set", "-n", name, "-f", flavour]);
+            if (Wallpapers.cliAvailable)
+                Quickshell.execDetached(["caelestia", "scheme", "set", "-n", name, "-f", flavour]);
+            else
+                Colours.generatePalette(Wallpapers.actualCurrent || Wallpapers.fallback);
         }
     }
 }

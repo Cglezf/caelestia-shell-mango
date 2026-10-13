@@ -40,14 +40,16 @@ Searcher {
         currentWallpaper.setText(path);
         if (cliAvailable)
             Quickshell.execDetached(["caelestia", "wallpaper", "-f", path, ...smartArg]);
+        else if (Colours.scheme === "dynamic")
+            Colours.generatePalette(path);
     }
 
     function preview(path: string): void {
         previewPath = path;
         showPreview = true;
 
-        if (cliAvailable && Colours.scheme === "dynamic")
-            getPreviewColoursProc.running = true;
+        if (Colours.scheme === "dynamic")
+            Colours.generatePalette(path, true);
     }
 
     function stopPreview(): void {
@@ -94,6 +96,7 @@ Searcher {
 
     FileView {
         id: currentWallpaper
+
         path: root.currentNamePath
         watchChanges: true
         printErrors: false
@@ -120,17 +123,5 @@ Searcher {
         recursive: true
         path: Paths.wallsdir
         filter: FileSystemModel.Images
-    }
-
-    Process {
-        id: getPreviewColoursProc
-
-        command: ["caelestia", "wallpaper", "-p", root.previewPath, ...root.smartArg]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                Colours.load(text, true);
-                Colours.showPreview = true;
-            }
-        }
     }
 }

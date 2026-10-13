@@ -18,6 +18,7 @@
   slurp,
   gpu-screen-recorder,
   python3,
+  matugen,
   wayland,
   libxkbcommon,
   material-symbols,
@@ -59,6 +60,7 @@
       slurp
       gpu-screen-recorder
       python3
+      matugen
     ]
     ++ extraRuntimeDeps
     ++ lib.optional withCli caelestia-cli;

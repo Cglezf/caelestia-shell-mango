@@ -60,7 +60,7 @@ Every contribution helps keep this project maintained and supports future improv
 - Game mode translates animation, blur, shadow, gap, border, rounding, and tearing settings into Mango options and restores the configured values when disabled.
 - Original shell shortcut actions are exposed through a native IPC registry, and the bundled Mango bindings include screenshot, sidebar, session, game-mode, nexus, and idle-inhibition actions.
 - Outside clicks dismiss modal drawers and detached popouts; clicks inside their controls remain interactive.
-- Wallpaper selection and persistence work without caelestia-cli; the CLI adds dynamic colour generation when installed.
+- Wallpaper selection and persistence work without caelestia-cli. A direct Matugen backend generates dynamic Material palettes, previews, light/dark modes, and variants; queued requests discard outdated results.
 - Nix packaging and Home Manager now use Mango and the required capture/keyboard dependencies instead of Hyprland.
 
 ### What Still Works?
@@ -105,7 +105,7 @@ Also huge thanks to:
 ## Installation
 
 > [!IMPORTANT]
-> Build this fork, or use its Nix flake. The upstream AUR shell package targets Hyprland and will not install these Mango changes. The Nix definitions have been adapted, but have not been built in the current Arch test environment.
+> Build this fork, or use its Nix flake. The upstream AUR shell package targets Hyprland and will not install these Mango changes. The Nix files pass parsing, package evaluation, and build-plan resolution; a full Nix build has not been run in the current Arch environment.
 
 ### Prerequisites for MangoWC
 
@@ -120,6 +120,7 @@ Before installing the shell, make sure you have MangoWC properly set up:
 Dependencies:
 
 -   [`caelestia-cli`](https://github.com/caelestia-dots/cli) (optional but recommended)
+-   [`matugen`](https://github.com/InioX/matugen) (for dynamic colours without caelestia-cli)
 -   [`quickshell-git`](https://git.outfoxxed.me/quickshell/quickshell) - **must be the git version**, not the latest tagged version
 -   `mangowc` - The MangoWC compositor with `mmsg` IPC support
 -   `python` (Python 3.11 or newer, for Mango config helpers)
@@ -1206,6 +1207,11 @@ focus change at different times. The launcher avoids redundant focus requests an
 for automatic typing focus on first open and reopen. The remaining `disableSurface` warning was
 reproduced during testing; it has not been eliminated. Do not disable input-method support just to hide it.
 
+The upstream [Qt input context](https://github.com/qt/qtbase/blob/dev/src/plugins/platforms/wayland/qwaylandinputcontext.cpp)
+disables the previous surface when the focus object changes; the
+[text-input-v3 implementation](https://github.com/qt/qtbase/blob/dev/src/plugins/platforms/wayland/qwaylandtextinputv3.cpp)
+warns when its tracked focused surface differs. This points to Qt/Wayland focus ordering rather than a missing Mango binding.
+
 ### Workspace clicks work only once
 
 Update and reinstall this fork, then restart Caelestia. The adapter now uses `view` for direct switches;
@@ -1244,7 +1250,12 @@ caelestia wallpaper -f <path_to_wallpaper>
 caelestia scheme set -n dynamic
 ```
 
-Without caelestia-cli, wallpaper selection still works and persists. Dynamic scheme generation requires the CLI.
+Without caelestia-cli, install Matugen and select `dynamic` through `>scheme` in the launcher.
+Wallpaper changes and previews then generate Material colours directly. Use `>variant` to choose a
+Material variant and the dashboard's light/dark control to change mode. The helper runs Matugen with
+`--dry-run`, so it does not execute your Matugen templates, hooks, or wallpaper commands.
+Static preset collections and the CLI's external application theming remain optional CLI features.
+The fallback updates the shell palette; it does not recolour other applications or terminal palettes.
 
 ### My wallpapers aren't showing up in the launcher!
 
@@ -1264,6 +1275,8 @@ Checks completed on Mango 0.18.0 and the installed Quickshell/Qt stack:
 - Real pointer clicks inside the launcher and outside the launcher/detached window-info popout.
 - Live blur enable/disable updates, native surface recreation, and preserved launcher state/focus.
 - Native window capture, missing-icon fallbacks, and first-open/reopen launcher focus.
+- Dynamic palettes with the CLI unavailable: saved dark/light modes, wallpaper previews, variant
+  changes, and replacement of outdated requests. Both legacy and current Matugen JSON formats are tested.
 
 Run the deterministic Python and JavaScript checks from the repository:
 
@@ -1273,7 +1286,9 @@ node tests/test_mango_model.js
 ```
 
 `tests/test_keyboardstate.cpp` also tests the compiled keyboard component with synthetic XKB keymaps.
-Nix builds and every hardware-specific configuration have not been verified in this environment.
+Nix parsing, package evaluation, and build-plan resolution pass. A full Nix build and every
+hardware-specific configuration have not been verified. The resolved Nix build requires about
+959 MiB of downloads and 3.7 GiB unpacked, exceeding the available space in the temporary test store.
 
 ## Credits & Appreciation
 
