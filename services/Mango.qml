@@ -428,6 +428,12 @@ Singleton {
             splitMarker: "\n"
             onRead: data => root.applyMonitors(data)
         }
+        // mango 0.17.5 writes watch snapshots to stderr (mmsg get uses stdout).
+        // Only JSON lines are state; anything else on stderr is a real error.
+        stderr: SplitParser {
+            splitMarker: "\n"
+            onRead: data => data.startsWith("{") ? root.applyMonitors(data) : console.warn("Mango watch:", data)
+        }
     }
 
     Process {
@@ -439,6 +445,10 @@ Singleton {
         stdout: SplitParser {
             splitMarker: "\n"
             onRead: data => root.applyClients(data)
+        }
+        stderr: SplitParser {
+            splitMarker: "\n"
+            onRead: data => data.startsWith("{") ? root.applyClients(data) : console.warn("Mango watch:", data)
         }
     }
 
