@@ -40,13 +40,14 @@ Every contribution helps keep this project maintained and supports future improv
 - **Window Management**: Replaced Hyprland's native window tracking with Wayland's `ToplevelManager` protocol for workspace and window information
 - **Input Masking**: Carefully tuned Region-based input masks to maintain click-through transparency on the desktop while keeping panels and bars interactive
 - **Blur Control**: Disabled blur effects for crisp rendering with MangoWC's layer shell
-- **Feature Adaptation**: Disabled features that rely on Hyprland-specific protocols (like screencopy-based window previews and gpu-screen-recorder integration)
+- **Feature Adaptation**: Direct `gpu-screen-recorder` integration with MangoWC monitor output, and graceful fallback placeholders for window preview thumbnails
 
 ### What Still Works?
 
 Pretty much everything! 🚀
 
 - ✅ All panels (bar, dashboard, utilities, OSD, sidebar)
+- ✅ Screen recording (fullscreen & region capture via `gpu-screen-recorder` + `slurp`)
 - ✅ Hover detection and auto-hide behaviors
 - ✅ Workspaces and window tracking
 - ✅ Media controls (MPRIS)
@@ -60,8 +61,7 @@ Pretty much everything! 🚀
 
 ### What Doesn't Work (Yet)?
 
-- ❌ Window preview thumbnails (MangoWC's screencopy protocol needs work)
-- ❌ Screen recording feature (gpu-screen-recorder configuration needs adaptation)
+- ⚠️ Live window preview thumbnails (requires `hyprland-toplevel-export-v1` protocol; the shell displays window title and metadata with a graceful fallback placeholder)
 
 ## Components
 
@@ -120,6 +120,8 @@ Dependencies:
 -   `qt6-imageformats`
 -   [`qt6-m3shapes-git`](https://github.com/soramanew/m3shapes)
 -   [`swappy`](https://github.com/jtheoof/swappy)
+-   [`gpu-screen-recorder`](https://git.dec05eba.com/gpu-screen-recorder/) (for screen recording)
+-   [`slurp`](https://github.com/emersion/slurp) (for region selection)
 -   [`fish`](https://github.com/fish-shell/fish-shell)
 -   [`bash`](https://www.gnu.org/software/bash)
 
@@ -1057,13 +1059,13 @@ Great question! Some folks prefer MangoWC's wlroots-based approach, simpler arch
 
 Nope! This fork is specifically adapted for MangoWC. If you want to use Hyprland, grab the [original Caelestia shell](https://github.com/caelestia-dots/shell) instead - it's fantastic!
 
-### Window previews don't work!
+### Window previews don't show live thumbnails!
 
-Yeah, that's a known limitation. MangoWC's screencopy protocol implementation needs more work before window previews can function properly. The window info panel is still there, just without thumbnails.
+Window toplevel screencopy requires the `hyprland-toplevel-export-v1` protocol, which MangoWC does not implement. The shell provides graceful degradation: the window info panel remains fully functional and displays the window title, class, and position with a clean placeholder rather than an empty box or failing completely.
 
-### Screen recording button is missing!
+### How does screen recording work?
 
-I've disabled the screen recording feature since gpu-screen-recorder configuration for MangoWC needs adaptation. This might come in a future update!
+Screen recording is fully integrated using `gpu-screen-recorder` and `slurp` for region captures. Ensure `gpu-screen-recorder` and `slurp` are installed. Recordings are saved to `~/Videos/Recordings` (configurable via `CAELESTIA_RECORDINGS_DIR`) and can be managed or played back directly from the Utilities drawer.
 
 ### My screen is flickering!
 

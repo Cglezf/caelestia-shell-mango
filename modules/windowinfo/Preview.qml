@@ -15,9 +15,8 @@ Item {
     required property ShellScreen screen
     required property var client  // Changed from HyprlandToplevel
 
-    Layout.preferredWidth: 0
+    Layout.preferredWidth: preview.implicitWidth + Tokens.padding.extraLargeIncreased
     Layout.fillHeight: true
-    visible: false  // Hide preview - requires xdg-desktop-portal-wlr setup
 
     StyledClippingRect {
         id: preview
@@ -28,7 +27,7 @@ Item {
         anchors.topMargin: Tokens.padding.large
         anchors.bottomMargin: Tokens.spacing.medium
 
-        implicitWidth: view.implicitWidth
+        implicitWidth: view.hasContent ? view.implicitWidth : Math.max(300, Math.round(parent.height * 16 / 9))
 
         color: Colours.tPalette.m3surfaceContainer
         radius: Tokens.rounding.medium
@@ -36,7 +35,7 @@ Item {
         Loader {
             asynchronous: true
             anchors.centerIn: parent
-            active: !root.client
+            active: !root.client || !view.hasContent
 
             sourceComponent: ColumnLayout {
                 spacing: 0
@@ -50,14 +49,14 @@ Item {
 
                 StyledText {
                     Layout.alignment: Qt.AlignHCenter
-                    text: Tr.tr("No active client")
+                    text: root.client ? Tr.tr("Preview unavailable") : Tr.tr("No active client")
                     color: Colours.palette.m3outline
                     font: Tokens.font.body.builders.large.size(28).weight(Font.Medium).build()
                 }
 
                 StyledText {
                     Layout.alignment: Qt.AlignHCenter
-                    text: Tr.tr("Try switching to a window")
+                    text: root.client ? (root.client.title || Tr.tr("Window thumbnail not supported on MangoWC")) : Tr.tr("Try switching to a window")
                     color: Colours.palette.m3outline
                     font: Tokens.font.body.large
                 }
@@ -68,6 +67,7 @@ Item {
             id: view
 
             anchors.centerIn: parent
+            visible: hasContent
 
             captureSource: root.client?.wayland ?? null // qmllint disable unresolved-type
             live: true

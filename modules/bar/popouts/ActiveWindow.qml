@@ -83,12 +83,14 @@ Item {
         }
 
         ClippingWrapperRectangle {
+            visible: preview.hasContent
             color: "transparent"
             radius: Tokens.rounding.medium
 
             ScreencopyView {
                 id: preview
 
+                visible: hasContent
                 captureSource: Hypr.activeToplevel?.wayland ?? null // qmllint disable unresolved-type
                 live: visible
 

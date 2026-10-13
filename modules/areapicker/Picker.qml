@@ -202,11 +202,17 @@ MouseArea {
 
     Process {
         running: true
-        command: ["hyprctl", "cursorpos", "-j"]
+        command: ["mmsg", "get", "cursorpos"]
         stdout: StdioCollector {
             onStreamFinished: {
-                const pos = JSON.parse(text);
-                root.checkClientRects(pos.x - root.screen.x, pos.y - root.screen.y);
+                try {
+                    const pos = JSON.parse(text);
+                    if (pos && typeof pos.x === "number" && typeof pos.y === "number") {
+                        root.checkClientRects(pos.x - root.screen.x, pos.y - root.screen.y);
+                    }
+                } catch (e) {
+                    console.warn("Failed to parse cursorpos:", e);
+                }
             }
         }
     }
