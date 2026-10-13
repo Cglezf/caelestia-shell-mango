@@ -50,5 +50,16 @@ class WatchStreamsTest(unittest.TestCase):
             self.assertIn('startsWith("{")', stderr, "stderr carries errors too: only JSON lines are state")
 
 
+class NoFishTest(unittest.TestCase):
+    def test_no_qml_launches_fish(self):
+        offenders = []
+        for folder in QML_DIRS:
+            for path in (ROOT / folder).rglob("*.qml"):
+                for number, line in enumerate(path.read_text().splitlines(), 1):
+                    if re.search(r'["\']fish["\']', line):
+                        offenders.append(f"{path.relative_to(ROOT)}:{number}")
+        self.assertEqual(offenders, [], "the target system has zsh, not fish")
+
+
 if __name__ == "__main__":
     unittest.main()

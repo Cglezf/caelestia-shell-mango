@@ -79,7 +79,9 @@ Item {
                 id: stateLayer
 
                 onClicked: {
-                    Quickshell.execDetached([...GlobalConfig.general.apps.terminal, "fish", "-C", `exec qalc -i '${root.math}'`]);
+                    // No shell in between: qalc gets the expression as its own argument, so
+                    // quotes in it cannot break the command and fish is not required.
+                    Quickshell.execDetached([...GlobalConfig.general.apps.terminal, "qalc", "-i", root.math]);
                     root.list.screenState.launcher = false;
                 }
 
