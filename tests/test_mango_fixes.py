@@ -61,5 +61,28 @@ class NoFishTest(unittest.TestCase):
         self.assertEqual(offenders, [], "the target system has zsh, not fish")
 
 
+class LogoTest(unittest.TestCase):
+    def test_logo_chain_falls_back_to_the_default(self):
+        # Without a final else, a custom logo cleared at runtime on a distro whose
+        # LOGO has no icon (cachyos) kept the previous image.
+        text = (ROOT / "utils/SysInfo.qml").read_text()
+        # Sliced by markers: os-release parsing holds a /"/g regex literal that a
+        # quote-aware brace walk would read as an open string.
+        chain = text[text.index("const logo = Quickshell.iconPath"):text.index("Connections {")]
+        last_else = chain.rfind("} else {")
+        self.assertNotEqual(last_else, -1, "the logo chain needs a final else")
+        tail = chain[last_else:]
+        self.assertIn("isDefaultLogo = true", tail)
+        self.assertIn("assets/logo.svg", tail)
+
+    def test_icon_lookups_cannot_return_a_placeholder(self):
+        # iconPath(name, "image-missing") never returns "", so `|| fallback` never ran.
+        text = (ROOT / "utils/SysInfo.qml").read_text()
+        calls = [balanced(text, m.end() - 1, "()") for m in re.finditer(r"iconPath\(", text)]
+        self.assertGreaterEqual(len(calls), 2)
+        for call in calls:
+            self.assertTrue(call[1:-1].rstrip().endswith("true"), f"iconPath{call} must check existence")
+
+
 if __name__ == "__main__":
     unittest.main()

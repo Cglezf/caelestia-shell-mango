@@ -70,6 +70,11 @@ Singleton {
             } else if (logo) {
                 root.osLogo = logo;
                 root.isDefaultLogo = false;
+            } else {
+                // Distro LOGO with no icon in any theme (e.g. cachyos): back to the
+                // default, or a custom logo cleared at runtime would stay on screen.
+                root.osLogo = Qt.resolvedUrl(`${Quickshell.shellDir}/assets/logo.svg`);
+                root.isDefaultLogo = true;
             }
         }
     }
