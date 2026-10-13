@@ -97,5 +97,32 @@ class SessionTooltipsTest(unittest.TestCase):
         self.assertIn("ToolTip.visible: hover.hovered", component)
 
 
+class WorkspaceWindowsTest(unittest.TestCase):
+    def test_every_popout_the_bar_opens_is_registered(self):
+        # A currentName with no Popout of that name opens an empty popout, silently.
+        bar = (ROOT / "modules/bar/Bar.qml").read_text()
+        content = (ROOT / "modules/bar/popouts/Content.qml").read_text()
+        opened = set(re.findall(r'currentName = "([a-z]+)"', bar))
+        registered = set(re.findall(r'name: "([a-z]+)"', content))
+        self.assertIn("workspacewindows", opened)
+        self.assertEqual(opened - registered, set())
+
+    def test_hovering_a_workspace_lists_its_windows(self):
+        bar = (ROOT / "modules/bar/Bar.qml").read_text()
+        self.assertIn('id === "workspaces"', bar)
+        self.assertIn("popouts.workspace = ws.id", bar)
+        self.assertIn("property int workspace", (ROOT / "modules/bar/popouts/PopoutState.qml").read_text())
+        self.assertIn("property alias workspace: popoutState.workspace",
+                      (ROOT / "modules/bar/popouts/Wrapper.qml").read_text())
+        self.assertIn("function workspaceAt(",
+                      (ROOT / "modules/bar/components/workspaces/Workspaces.qml").read_text())
+
+    def test_window_list_focuses_through_the_compositor_service(self):
+        # Direct mmsg calls skip Mango.qml's queue and its client,<id> syntax.
+        text = (ROOT / "modules/bar/popouts/WorkspaceWindows.qml").read_text()
+        self.assertIn("Hypr.dispatch(`focusid address:", text)
+        self.assertNotIn('"mmsg"', text)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -45,6 +45,13 @@ StyledClippingRect {
         return wsIds.indexOf(id);
     }
 
+    // The workspace indicator at height <y> of <from>, or null. The bar uses it to
+    // open the window list of the workspace under the pointer.
+    function workspaceAt(from: Item, y: real): Workspace {
+        const p = from.mapToItem(workspaces, from.width / 2, y);
+        return workspaces.itemAt(workspaces.width / 2, p.y) as Workspace;
+    }
+
     implicitWidth: Tokens.sizes.bar.innerWidth
     implicitHeight: workspaces.layoutHeight + workspaces.anchors.margins * 2
 

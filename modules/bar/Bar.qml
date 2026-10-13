@@ -72,6 +72,18 @@ ColumnLayout {
             popouts.currentName = id.toLowerCase();
             popouts.currentCenter = (ch.item as Item).mapToItem(root, 0, (ch.item as Item).implicitHeight / 2).y ?? 0;
             popouts.hasCurrent = true;
+        } else if (id === "workspaces") {
+            // The windows of the workspace under the pointer; an empty one opens nothing.
+            const wsItem = (ch.item as Workspaces).workspaceAt(root, y);
+            const ws = Hypr.workspaces.values.find(w => w.id === wsItem?.ws);
+            if (ws && ws.toplevels.values.length > 0) {
+                popouts.workspace = ws.id;
+                popouts.currentName = "workspacewindows";
+                popouts.currentCenter = wsItem.mapToItem(root, 0, wsItem.implicitHeight / 2).y;
+                popouts.hasCurrent = true;
+            } else {
+                popouts.hasCurrent = false;
+            }
         }
     }
 

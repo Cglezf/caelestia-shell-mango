@@ -37,6 +37,13 @@ Item {
         }
 
         Popout {
+            name: "workspacewindows"
+            sourceComponent: WorkspaceWindows {
+                popouts: root.popouts
+            }
+        }
+
+        Popout {
             id: networkPopout
 
             name: "network"
