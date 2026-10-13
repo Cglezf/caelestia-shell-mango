@@ -51,6 +51,7 @@ Every contribution helps keep this project maintained and supports future improv
 - Transparency settings synchronize Mango drawer blur through a managed config fragment, with optional alpha-threshold translation when supported by the compositor.
 - The network password dialog uses the current appearance tokens instead of the removed `Appearance` singleton.
 - Missing application icons use a checked theme fallback or bundled application icon, including when `image-missing` itself is unavailable. Network tray icons retain a bundled network fallback.
+- File-picker MIME and special-folder icons use checked theme fallbacks and bundled file/folder images when the theme lacks them.
 - A missing `~/.face` keeps the dashboard and lock screen's person icon visible without repeated image warnings.
 - First launch saves the built-in colour palette when `scheme.json` is missing. The launcher creates its database directory and falls back to memory if persistent storage cannot be opened.
 - Native window previews use Mango's `foreign_toplevel_id` and `grim -T`, refresh while visible, and stop when closed.
@@ -61,6 +62,7 @@ Every contribution helps keep this project maintained and supports future improv
 - Original shell shortcut actions are exposed through a native IPC registry, and the bundled Mango bindings include screenshot, sidebar, session, game-mode, nexus, and idle-inhibition actions.
 - Outside clicks dismiss modal drawers and detached popouts; clicks inside their controls remain interactive.
 - Wallpaper selection and persistence work without caelestia-cli. A direct Matugen backend generates dynamic Material palettes, previews, light/dark modes, and variants; queued requests discard outdated results.
+- Dynamic colours also follow changes to the saved wallpaper path without the CLI, including changes made outside the shell. Reapplying the same wallpaper regenerates its palette.
 - Nix packaging and Home Manager now use Mango and the required capture/keyboard dependencies instead of Hyprland.
 
 ### What Still Works?
@@ -1251,6 +1253,10 @@ focus change at different times. The launcher avoids redundant focus requests an
 for automatic typing focus on first open and reopen. The remaining `disableSurface` warning was
 reproduced during testing; it has not been eliminated. Do not disable input-method support just to hide it.
 
+The same warning reproduces with a plain Qt `TextInput` in a minimal Quickshell layer window,
+without Caelestia components, both with a persistent input and with one recreated on each open.
+Run `qs -p tests/qt-text-input-repro.qml` in Mango to reproduce it (it briefly acquires keyboard focus).
+
 The upstream [Qt input context](https://github.com/qt/qtbase/blob/dev/src/plugins/platforms/wayland/qwaylandinputcontext.cpp)
 disables the previous surface when the focus object changes; the
 [text-input-v3 implementation](https://github.com/qt/qtbase/blob/dev/src/plugins/platforms/wayland/qwaylandtextinputv3.cpp)
@@ -1285,6 +1291,10 @@ Please read the [configuring](#configuring) section.
 If there is no corresponding option, make a [feature request](https://github.com/caelestia-dots/shell/issues/new?template=feature.yml).
 
 ### How do I make my colour scheme change to match my wallpaper?
+
+Select **dynamic** through `>scheme` in the launcher. Fixed schemes such as Catppuccin Mocha
+intentionally keep their colours when the wallpaper changes. Installing Matugen alone does not
+switch a previously selected fixed scheme to dynamic.
 
 Set a wallpaper via `>wallpaper` in the launcher or `caelestia wallpaper`, and set the scheme to the dynamic scheme via
 `>scheme` in the launcher or `caelestia scheme set`, e.g.:
@@ -1321,6 +1331,9 @@ Checks completed on Mango 0.18.0 and the installed Quickshell/Qt stack:
 - Native window capture, missing-icon fallbacks, and first-open/reopen launcher focus.
 - Dynamic palettes with the CLI unavailable: saved dark/light modes, wallpaper previews, variant
   changes, and replacement of outdated requests. Both legacy and current Matugen JSON formats are tested.
+- A change to the saved wallpaper path regenerated a visibly different palette without the CLI;
+  a subsequent light-mode request stayed applied after debounce. All 14 reported file/folder icons loaded
+  without missing-icon warnings. The standalone Qt focus warning remains reproducible.
 - Installer prerequisite checks and a mocked interactive build/install flow; Mango config backups,
   repeated setup, source-file bindings, key conflicts, and managed-config preservation.
 

@@ -20,6 +20,7 @@ Searcher {
     readonly property string current: showPreview ? previewPath : actualCurrent
     property string previewPath
     property string actualCurrent
+    property string lastPalettePath
     property bool previewColourLock
     property bool pendingPreviewClear
 
@@ -36,12 +37,15 @@ Searcher {
     }
 
     function setWallpaper(path: string): void {
+        // Reapplying the same path can follow an image being edited in place.
+        if (!cliAvailable) {
+            lastPalettePath = "";
+            paletteRefresh.restart();
+        }
         actualCurrent = path;
         currentWallpaper.setText(path);
         if (cliAvailable)
             Quickshell.execDetached(["caelestia", "wallpaper", "-f", path, ...smartArg]);
-        else if (Colours.scheme === "dynamic")
-            Colours.generatePalette(path);
     }
 
     function preview(path: string): void {
@@ -65,12 +69,38 @@ Searcher {
             Colours.showPreview = false;
     }
 
+    // The state file can also change outside this shell (CLI or another instance).
+    // Debounce both sources and wait for the CLI availability probe to finish.
+    onActualCurrentChanged: paletteRefresh.restart()
+    onCliAvailableChanged: paletteRefresh.restart()
+
     list: wallpapers.entries
+
     key: "relativePath"
+
     useFuzzy: GlobalConfig.launcher.useFuzzy.wallpapers
+
     extraOpts: useFuzzy ? ({}) : ({
             forward: false
         })
+
+    Connections {
+        function onSchemeChanged(): void {
+            paletteRefresh.restart();
+        }
+
+        target: Colours
+    }
+
+    Timer {
+        id: paletteRefresh
+
+        interval: 150
+        onTriggered: {
+            if (!root.cliAvailable && Colours.scheme === "dynamic" && root.actualCurrent && root.actualCurrent !== root.lastPalettePath)
+                Colours.generatePalette(root.actualCurrent);
+        }
+    }
 
     IpcHandler {
         function get(): string {

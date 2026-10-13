@@ -194,11 +194,11 @@ Item {
                 if (file.isImage)
                     source = Qt.resolvedUrl(file.path);
                 else if (!file.isDir)
-                    source = Quickshell.iconPath(file.mimeType.replace("/", "-"), "application-x-zerosize");
+                    source = Icons.iconPath(file.mimeType.replace("/", "-"), "text-x-generic");
                 else if (root.dialog.cwd.length === 1 && ["Desktop", "Documents", "Downloads", "Music", "Pictures", "Public", "Templates", "Videos"].includes(file.name))
-                    source = Quickshell.iconPath(`folder-${file.name.toLowerCase()}`);
+                    source = Icons.iconPath(`folder-${file.name.toLowerCase()}`, "folder");
                 else
-                    source = Quickshell.iconPath("inode-directory");
+                    source = Icons.iconPath("inode-directory", "folder");
             }
         }
 

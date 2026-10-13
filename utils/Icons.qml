@@ -147,7 +147,13 @@ Singleton {
         if (name === "network-wired" || name === "preferences-system-network")
             return Qt.resolvedUrl("../assets/network-wired.svg");
         const fallbackPath = Quickshell.iconPath(fallback ?? "image-missing", true);
-        return fallbackPath || Qt.resolvedUrl("../assets/application-default.svg");
+        if (fallbackPath)
+            return fallbackPath;
+        if (name === "inode-directory" || name?.startsWith("folder") || fallback === "folder")
+            return Qt.resolvedUrl("../assets/folder-default.svg");
+        if (fallback === "text-x-generic")
+            return Qt.resolvedUrl("../assets/file-default.svg");
+        return Qt.resolvedUrl("../assets/application-default.svg");
     }
 
     function getAppIcon(name: string, fallback: string): string {

@@ -215,6 +215,7 @@ Singleton {
                     root.load(output, true);
                     root.showPreview = true;
                 } else {
+                    Wallpapers.lastPalettePath = job.image;
                     root.load(output, false);
                     schemeFile.setText(output);
                     Wallpapers.previewColourLock = false;
