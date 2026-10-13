@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Controls
 import Quickshell
 import Caelestia
 import Caelestia.Config
@@ -24,6 +25,7 @@ Column {
 
         icon: Config.session.icons.logout
         command: Config.session.commands.logout
+        label: qsTr("Cerrar sesión")
 
         KeyNavigation.down: shutdown
 
@@ -44,6 +46,7 @@ Column {
 
         icon: Config.session.icons.shutdown
         command: Config.session.commands.shutdown
+        label: qsTr("Apagar")
 
         KeyNavigation.up: logout
         KeyNavigation.down: hibernate
@@ -66,6 +69,7 @@ Column {
 
         icon: Config.session.icons.hibernate
         command: Config.session.commands.hibernate
+        label: qsTr("Hibernar")
 
         KeyNavigation.up: shutdown
         KeyNavigation.down: reboot
@@ -76,6 +80,7 @@ Column {
 
         icon: Config.session.icons.reboot
         command: Config.session.commands.reboot
+        label: qsTr("Reiniciar")
 
         KeyNavigation.up: hibernate
     }
@@ -84,6 +89,8 @@ Column {
         id: button
 
         required property list<string> command
+        // What the button does, shown on hover: the icon alone does not say it.
+        required property string label
 
         function exec(): void {
             if (!SessionManager.exec(command))
@@ -92,6 +99,14 @@ Column {
 
         implicitWidth: Tokens.sizes.session.button
         implicitHeight: Tokens.sizes.session.button
+
+        ToolTip.visible: hover.hovered
+        ToolTip.text: button.label
+        ToolTip.delay: 500
+
+        HoverHandler {
+            id: hover
+        }
 
         inactiveColour: activeFocus ? Colours.palette.m3secondaryContainer : Colours.tPalette.m3surfaceContainer
         inactiveOnColour: activeFocus ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurface

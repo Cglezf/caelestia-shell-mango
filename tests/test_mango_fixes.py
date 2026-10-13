@@ -84,5 +84,18 @@ class LogoTest(unittest.TestCase):
             self.assertTrue(call[1:-1].rstrip().endswith("true"), f"iconPath{call} must check existence")
 
 
+class SessionTooltipsTest(unittest.TestCase):
+    def test_every_session_button_has_a_label_shown_on_hover(self):
+        # The menu is icons only: without a label nothing says which one shuts down.
+        text = (ROOT / "modules/session/Content.qml").read_text()
+        buttons = blocks(text, "SessionButton")
+        self.assertEqual(len(buttons), 4, "logout, shutdown, hibernate, reboot")
+        for body in buttons:
+            self.assertRegex(body, r'label:\s*qsTr\("[^"]+"\)')
+        component = text[text.index("component SessionButton"):]
+        self.assertIn("ToolTip.text: button.label", component)
+        self.assertIn("ToolTip.visible: hover.hovered", component)
+
+
 if __name__ == "__main__":
     unittest.main()
