@@ -16,6 +16,8 @@ class IUtils : public QObject {
 public:
     static IUtils* create(QQmlEngine* engine, QJSEngine* jsEngine);
 
+    Q_INVOKABLE static bool fileExists(const QString& path);
+
     Q_INVOKABLE static QUrl urlForPath(const QString& path, int fillMode);
 
 private:

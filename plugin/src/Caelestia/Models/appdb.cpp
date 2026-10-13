@@ -1,6 +1,9 @@
 #include "appdb.hpp"
 
 #include <qloggingcategory.h>
+#include <qdir.h>
+#include <qfileinfo.h>
+#include <qsqlerror.h>
 #include <qsqldatabase.h>
 #include <qsqlquery.h>
 #include <quuid.h>
@@ -149,8 +152,19 @@ void AppDb::setPath(const QString& path) {
 
     auto db = QSqlDatabase::database(m_uuid, false);
     db.close();
+    if (newPath != u":memory:"_s && !QDir().mkpath(QFileInfo(newPath).absolutePath())) {
+        qCWarning(lcAppDb) << "Could not create database directory for" << newPath;
+    }
     db.setDatabaseName(newPath);
-    db.open();
+    if (!db.open()) {
+        qCWarning(lcAppDb) << "Could not open app database:" << db.lastError()
+                           << "- using in-memory storage";
+        db.setDatabaseName(u":memory:"_s);
+        if (!db.open()) {
+            qCWarning(lcAppDb) << "Could not open in-memory app database:" << db.lastError();
+            return;
+        }
+    }
 
     QSqlQuery query(db);
     query.exec(u"CREATE TABLE IF NOT EXISTS frequencies (id TEXT PRIMARY KEY, frequency INTEGER)"_s);

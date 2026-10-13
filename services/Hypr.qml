@@ -12,6 +12,7 @@ QtObject {
     readonly property var workspaces: Services.Mango.workspaces
     readonly property var monitors: Services.Mango.monitors
     readonly property bool usingLua: false
+    readonly property bool supportsSpecialWorkspaces: false
 
     readonly property var activeToplevel: Services.Mango.activeToplevel
     readonly property var focusedWorkspace: Services.Mango.focusedWorkspace
@@ -44,7 +45,8 @@ QtObject {
     }
 
     function toggleSpecial(name: string): void {
-        dispatch(`togglespecialworkspace ${name}`);
+        if (supportsSpecialWorkspaces)
+            dispatch(`togglespecialworkspace ${name}`);
     }
 
     function cycleSpecialWorkspace(direction: string): void {

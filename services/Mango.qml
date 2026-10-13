@@ -66,6 +66,7 @@ Singleton {
         readonly property string title: root.focusedToplevel?.title ?? ""
         readonly property string appId: root.focusedToplevel?.appId ?? ""
         readonly property string address: root.focusedAddress
+        readonly property string captureIdentifier: root.focusedClientData?.foreign_toplevel_id ?? ""
         readonly property var workspace: root.focusedWorkspace
         readonly property var monitor: root.focusedMonitor
         readonly property var lastIpcObject: root.focusedToplevel?.lastIpcObject ?? root.emptyIpcObject
@@ -179,6 +180,8 @@ Singleton {
             at: [client?.x ?? 0, client?.y ?? 0],
             size: [client?.width ?? 0, client?.height ?? 0],
             // Hyprland uses 0 = tiled, 1 = maximised, 2 = fullscreen.
+            mapped: client !== null,
+            tags: [],
             fullscreen: client?.is_fullscreen ? 2 : client?.is_maximized ? 1 : 0,
             floating: !!client?.is_floating,
             // MangoWC's closest analogue to a pinned (always-on-top) window.
@@ -197,11 +200,11 @@ Singleton {
 
         return {
             address: "0x" + (client?.id ?? 0),
+            captureIdentifier: client?.foreign_toplevel_id ?? "",
             title: client?.title ?? "",
             appId: client?.appid ?? "",
-            // Only the focused window is ever handed to ScreencopyView, and
-            // ToplevelManager already knows which one that is. Toplevel exposes
-            // no `window` member, so the Toplevel itself is what gets passed on.
+            // Retain the management handle for window actions. Native previews
+            // use captureIdentifier rather than Quickshell's Hyprland capture path.
             wayland: client?.is_focused ? ToplevelManager.activeToplevel : null,
             monitor: root.focusedMonitor,
             workspace: {
@@ -272,7 +275,9 @@ Singleton {
                 // Relative switch, e.g. the bar's `workspace r+1` scroll action.
                 send(to === "r-1" ? "viewtoleft" : "viewtoright", "0");
             } else {
-                send("comboview", to ?? "");
+                // comboview accumulates tags until a keyboard release resets
+                // Mango's combo state. Mouse/IPC requests have no such release.
+                send("view", to ?? "");
             }
             return;
         }

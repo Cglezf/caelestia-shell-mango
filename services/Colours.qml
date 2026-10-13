@@ -114,10 +114,28 @@ Singleton {
     }
 
     FileView {
+        id: schemeFile
+
+        printErrors: false
         path: `${Paths.state}/scheme.json`
         watchChanges: true
         onFileChanged: reload()
         onLoaded: root.load(text(), false)
+        onLoadFailed: error => {
+            if (error !== FileViewError.FileNotFound) {
+                console.warn("Could not read colour scheme:", error);
+                return;
+            }
+            // Persist the built-in palette on first launch.
+            const colours = {};
+            for (const name in root.current) {
+                if (name.startsWith("m3") || /^term\d+$/.test(name))
+                    colours[name.startsWith("m3") ? name.slice(2) : name] = String(root.current[name]).slice(1);
+            }
+            Qt.callLater(() => schemeFile.setText(JSON.stringify({
+                name: "default", flavour: "default", mode: "dark", colours
+            })));
+        }
     }
 
     ImageAnalyser {

@@ -70,12 +70,12 @@ CustomMouseArea {
         const y = event.y;
 
         const interactingWithBar = x < bar.implicitWidth;
-        const interactingWithVisiblePanel = (visibilities.launcher && inBottomPanel(panels.launcher, x, y)) ||
-                                            (visibilities.utilities && inBottomPanel(panels.utilities, x, y)) ||
-                                            (visibilities.dashboard && inTopPanel(panels.dashboard, x, y)) ||
-                                            (visibilities.session && inRightPanel(panels.session, x, y)) ||
-                                            (visibilities.sidebar && inRightPanel(panels.sidebar, x, y)) ||
-                                            (visibilities.osd && inRightPanel(panels.osd, x, y));
+        const interactingWithVisiblePanel = (root.screenState.launcher && inBottomPanel(panels.launcher, x, y)) ||
+                                            (root.screenState.utilities && inBottomPanel(panels.utilities, x, y)) ||
+                                            (root.screenState.dashboard && inTopPanel(panels.dashboard, x, y)) ||
+                                            (root.screenState.session && inRightPanel(panels.session, x, y)) ||
+                                            (root.screenState.sidebar && inRightPanel(panels.sidebar, x, y)) ||
+                                            (root.screenState.osd && inRightPanel(panels.osd, x, y));
 
         // If we are not interacting with any visible shell surface, let the click pass to the underlying window
         if (!interactingWithBar && !interactingWithVisiblePanel)

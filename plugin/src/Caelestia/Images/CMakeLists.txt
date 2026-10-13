@@ -5,6 +5,7 @@ qml_module(caelestia-images
         imagecacher.cpp
         imageanalyser.cpp
         iutils.cpp
+        windowcapture.cpp
     LIBRARIES
         Qt::Gui
         Qt::Quick

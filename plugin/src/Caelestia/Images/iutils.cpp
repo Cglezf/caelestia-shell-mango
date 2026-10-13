@@ -2,6 +2,8 @@
 
 #include "cachingimageprovider.hpp"
 
+#include <qfileinfo.h>
+
 namespace caelestia::images {
 
 using Qt::StringLiterals::operator""_s;
@@ -17,6 +19,10 @@ IUtils* IUtils::create(QQmlEngine* engine, QJSEngine* jsEngine) {
     engine->addImageProvider(u"scache"_s, new CachingImageProvider(CachingImageProvider::FillMode::Stretch));
 
     return new IUtils(engine);
+}
+
+bool IUtils::fileExists(const QString& path) {
+    return QFileInfo(path).isFile();
 }
 
 QUrl IUtils::urlForPath(const QString& path, int fillMode) {

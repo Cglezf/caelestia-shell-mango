@@ -3,7 +3,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Effects
 import Quickshell
-import Quickshell.Hyprland
 import Caelestia
 import Caelestia.Components
 import Caelestia.Config
@@ -16,9 +15,9 @@ StyledClippingRect {
     required property ShellScreen screen
     required property bool fullscreen
 
-    readonly property HyprlandMonitor monitor: Hypr.monitorFor(screen)
-    readonly property bool onSpecial: monitor?.lastIpcObject.specialWorkspace?.name !== ""
-    readonly property int activeWsId: monitor.activeWorkspace?.id ?? 1
+    readonly property var monitor: Hypr.monitorFor(screen)
+    readonly property bool onSpecial: (monitor?.lastIpcObject?.specialWorkspace?.name ?? "") !== ""
+    readonly property int activeWsId: monitor?.activeWorkspace?.id ?? 1
     readonly property int activeWsIdx: workspaceIndex(activeWsId)
 
     // Don't offer more indicators than the compositor actually has tags, and

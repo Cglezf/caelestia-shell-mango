@@ -90,6 +90,7 @@ Item {
 
                 anchors.fill: parent
                 path: `${Paths.home}/.face`
+                allowMissing: true
             }
 
             StyledRect {

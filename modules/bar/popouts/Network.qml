@@ -379,10 +379,10 @@ ColumnLayout {
     // Password dialog overlay
     StyledRect {
         Layout.fillWidth: true
-        Layout.topMargin: Appearance.spacing.normal
-        implicitHeight: passwordColumn.implicitHeight + Appearance.padding.normal * 2
+        Layout.topMargin: Tokens.spacing.medium
+        implicitHeight: passwordColumn.implicitHeight + Tokens.padding.medium * 2
         visible: root.showPasswordDialog
-        radius: Appearance.rounding.normal
+        radius: Tokens.rounding.medium
         color: Colours.palette.m3surfaceContainerHighest
 
         onVisibleChanged: {
@@ -395,8 +395,8 @@ ColumnLayout {
             id: passwordColumn
 
             anchors.fill: parent
-            anchors.margins: Appearance.padding.normal
-            spacing: Appearance.spacing.normal
+            anchors.margins: Tokens.padding.medium
+            spacing: Tokens.spacing.medium
 
             StyledText {
                 text: qsTr("Enter password for \"%1\"").arg(root.passwordNetwork?.ssid ?? "")
@@ -429,12 +429,12 @@ ColumnLayout {
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: Appearance.spacing.small
+                spacing: Tokens.spacing.small
 
                 StyledRect {
                     Layout.fillWidth: true
-                    implicitHeight: cancelText.implicitHeight + Appearance.padding.small * 2
-                    radius: Appearance.rounding.small
+                    implicitHeight: cancelText.implicitHeight + Tokens.padding.small * 2
+                    radius: Tokens.rounding.small
                     color: Colours.palette.m3surfaceContainerHigh
 
                     StateLayer {
@@ -457,8 +457,8 @@ ColumnLayout {
 
                 StyledRect {
                     Layout.fillWidth: true
-                    implicitHeight: connectText.implicitHeight + Appearance.padding.small * 2
-                    radius: Appearance.rounding.small
+                    implicitHeight: connectText.implicitHeight + Tokens.padding.small * 2
+                    radius: Tokens.rounding.small
                     color: Colours.palette.m3primary
 
                     StateLayer {

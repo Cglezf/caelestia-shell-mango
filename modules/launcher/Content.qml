@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Window
 import Caelestia
 import Caelestia.Config
 import Caelestia.I18n
@@ -15,6 +16,25 @@ Item {
     required property ScreenState screenState
     required property var panels
     required property real maxHeight
+
+    function focusSearch(): void {
+        if (screenState.launcher && !screenState.session && visible && root.Window.window?.active && !search.activeFocus)
+            search.forceActiveFocus(Qt.OtherFocusReason);
+    }
+
+    onVisibleChanged: {
+        if (visible)
+            Qt.callLater(root.focusSearch);
+    }
+
+    Connections {
+        target: root.Window.window
+
+        function onActiveChanged(): void {
+            if (root.Window.window?.active)
+                Qt.callLater(root.focusSearch);
+        }
+    }
 
     readonly property int padding: Tokens.padding.large
     readonly property int rounding: Tokens.rounding.extraLarge
@@ -107,17 +127,19 @@ Item {
             }
         }
 
-        Component.onCompleted: forceActiveFocus()
+        Component.onCompleted: Qt.callLater(root.focusSearch)
 
         Connections {
             function onLauncherChanged(): void {
-                if (!root.screenState.launcher)
+                if (root.screenState.launcher)
+                    Qt.callLater(root.focusSearch);
+                else
                     search.text = "";
             }
 
             function onSessionChanged(): void {
                 if (!root.screenState.session)
-                    search.forceActiveFocus();
+                    Qt.callLater(root.focusSearch);
             }
 
             target: root.screenState

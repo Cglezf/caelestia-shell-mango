@@ -1,6 +1,7 @@
 import QtQuick
+import Quickshell
 import QtQuick.Layouts
-import Quickshell.Wayland
+import Caelestia.Images
 import Quickshell.Widgets
 import Caelestia.Config
 import qs.components
@@ -83,16 +84,15 @@ Item {
         }
 
         ClippingWrapperRectangle {
-            visible: preview.hasContent
+            visible: preview.identifier !== ""
             color: "transparent"
             radius: Tokens.rounding.medium
 
-            ScreencopyView {
+            WindowCapture {
                 id: preview
 
-                visible: hasContent
-                captureSource: Hypr.activeToplevel?.wayland ?? null // qmllint disable unresolved-type
-                live: visible
+                identifier: Hypr.activeToplevel?.captureIdentifier ?? ""
+                active: visible && (QsWindow.window?.visible ?? false)
 
                 constraintSize.width: Tokens.sizes.bar.windowPreviewSize
                 constraintSize.height: Tokens.sizes.bar.windowPreviewSize

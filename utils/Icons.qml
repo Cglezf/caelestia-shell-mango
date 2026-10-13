@@ -140,11 +140,19 @@ Singleton {
         return "";
     }
 
+    function iconPath(name: string, fallback = "image-missing"): string {
+        const resolved = Quickshell.iconPath(name ?? "", true);
+        if (resolved)
+            return resolved;
+        if (name === "network-wired" || name === "preferences-system-network")
+            return Qt.resolvedUrl("../assets/network-wired.svg");
+        const fallbackPath = Quickshell.iconPath(fallback ?? "image-missing", true);
+        return fallbackPath || Qt.resolvedUrl("../assets/application-default.svg");
+    }
+
     function getAppIcon(name: string, fallback: string): string {
         const icon = DesktopEntries.heuristicLookup(name)?.icon;
-        if (fallback !== "undefined")
-            return Quickshell.iconPath(icon, fallback);
-        return Quickshell.iconPath(icon);
+        return root.iconPath(icon ?? "", fallback);
     }
 
     function getAppCategoryIcon(name: string, fallback: string): string {
@@ -217,6 +225,12 @@ Singleton {
             const file = name.slice(name.lastIndexOf("/") + 1);
             const themed = Quickshell.iconPath(file, true);
             icon = themed ? themed : Qt.resolvedUrl(`${path}/${file}`);
+        }
+        // Tray clients may request icons absent from the installed theme.
+        if (icon.startsWith("image://icon/")) {
+            const name = decodeURIComponent(icon.slice("image://icon/".length).split("?")[0]);
+            if ((name === "network-wired" || name === "preferences-system-network") && !Quickshell.hasThemeIcon(name))
+                return Qt.resolvedUrl("../assets/network-wired.svg");
         }
         return icon;
     }

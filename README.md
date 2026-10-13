@@ -37,14 +37,26 @@ Every contribution helps keep this project maintained and supports future improv
 ### What Changed?
 
 - **MangoWC Integration**: Complete rewrite of the compositor backend to use MangoWC's `mmsg` IPC instead of Hyprland's socket protocol
-- **Window Management**: Replaced Hyprland's native window tracking with Wayland's `ToplevelManager` protocol for workspace and window information
+- **Window Management**: Workspace, monitor, and client state comes from persistent `mmsg watch` streams. Mango objects replace Hyprland-specific QML types.
 - **Input Masking**: Carefully tuned Region-based input masks to maintain click-through transparency on the desktop while keeping panels and bars interactive
-- **Blur Control**: Disabled blur effects for crisp rendering with MangoWC's layer shell
-- **Feature Adaptation**: Direct `gpu-screen-recorder` integration with MangoWC monitor output, and graceful fallback placeholders for window preview thumbnails
+- **Blur Control**: Mango controls compositor blur. Caelestia's automatic Hyprland blur-rule updates are not translated; the no-blur rule below is optional.
+- **Feature Adaptation**: Direct `gpu-screen-recorder` integration with MangoWC monitor output, plus native window previews through `grim -T`.
+
+### Recent fixes
+
+- Workspace clicks use `mmsg dispatch view,<tag>` so repeated switches work without a keyboard shortcut resetting combination state.
+- Workspace indicators respect the compositor's tag count; window occupancy uses Mango client data.
+- Fullscreen notification checks accept Mango monitor objects, and drawer clicks use the current screen state.
+- The launcher acquires keyboard focus on open and refocuses search on subsequent opens. Focus requests wait for the Wayland window to be active and skip an already focused field. Mango keybinding examples call Quickshell directly.
+- The network password dialog uses the current appearance tokens instead of the removed `Appearance` singleton.
+- Missing application icons use a checked theme fallback or bundled application icon, including when `image-missing` itself is unavailable. Network tray icons retain a bundled network fallback.
+- A missing `~/.face` keeps the dashboard and lock screen's person icon visible without repeated image warnings.
+- First launch saves the built-in colour palette when `scheme.json` is missing. The launcher creates its database directory and falls back to memory if persistent storage cannot be opened.
+- Native window previews use Mango's `foreign_toplevel_id` and `grim -T`, refresh while visible, and stop when closed. Hyprland special-workspace click actions remain disabled.
 
 ### What Still Works?
 
-Pretty much everything! 🚀
+The following features are available:
 
 - ✅ All panels (bar, dashboard, utilities, OSD, sidebar)
 - ✅ Screen recording (fullscreen & region capture via `gpu-screen-recorder` + `slurp`)
@@ -61,12 +73,15 @@ Pretty much everything! 🚀
 
 ### What Doesn't Work (Yet)?
 
-- ⚠️ Live window preview thumbnails (requires `hyprland-toplevel-export-v1` protocol; the shell displays window title and metadata with a graceful fallback placeholder)
+- Live window previews require Mango to expose `foreign_toplevel_id` and a version of `grim` with `-T` support. Older versions retain the preview fallback.
+- Hyprland-style special workspaces are not implemented by this adapter.
+- The compositor adapter currently uses the focused monitor for every screen. Full per-monitor workspace tracking is still limited.
+- Notifications require Caelestia to own `org.freedesktop.Notifications`; another running notification server can prevent registration.
 
 ## Components
 
 -   Widgets: [`Quickshell`](https://quickshell.outfoxxed.me)
--   Compositor: [`MangoWC`](https://github.com/jvl-13/MangoWC) (originally [`Hyprland`](https://hyprland.org))
+-   Compositor: [`MangoWC`](https://github.com/mangowm/mango) (originally [`Hyprland`](https://hyprland.org))
 -   Original Dots: [`caelestia`](https://github.com/caelestia-dots)
 
 ## Special Thanks
@@ -87,11 +102,18 @@ Also huge thanks to:
 
 Before installing the shell, make sure you have MangoWC properly set up:
 
-1. **MangoWC Compositor**: Install and configure MangoWC ([GitHub repo](https://github.com/jvl-13/MangoWC))
-2. **MangoWC Layer Rules**: Add these to your `~/.config/mango/rule.conf` to disable blur on shell surfaces:
+1. **MangoWC Compositor**: Install and configure MangoWC ([GitHub repo](https://github.com/mangowm/mango))
+2. **Optional blur rule**: You do not need to disable Mango blur to install or run Caelestia.
+   To keep Caelestia surfaces unblurred while retaining blur on other apps, add this to
+   `~/.config/mango/config.conf` (or a rules file sourced by it):
+   ```ini
+   layer_rule=layer_name:caelestia.*,no_blur:1
    ```
-   noblur:1 caelestia
-   ```
+   Omit this rule if you want compositor blur on the shell. Mango's `blur` and `blur_layer` settings
+   control whether it is enabled; layer rules also support `blur_ignore_alpha` for transparent areas.
+   This port does not currently synchronize Caelestia's transparency settings with Mango blur rules.
+   See the [Mango layer-rule reference](https://mangowm.github.io/docs/window-management/rules/)
+   and [blur settings](https://mangowm.github.io/docs/visuals/effects/).
 
 ### Manual Installation (MangoWC)
 
@@ -122,6 +144,7 @@ Dependencies:
 -   [`swappy`](https://github.com/jtheoof/swappy)
 -   [`gpu-screen-recorder`](https://git.dec05eba.com/gpu-screen-recorder/) (for screen recording)
 -   [`slurp`](https://github.com/emersion/slurp) (for region selection)
+-   [`grim`](https://gitlab.freedesktop.org/emersion/grim) with `-T` support (for live window previews; check `grim -h`)
 -   [`fish`](https://github.com/fish-shell/fish-shell)
 -   [`bash`](https://www.gnu.org/software/bash)
 
@@ -130,41 +153,54 @@ Build dependencies:
 - [`cmake`](https://gitlab.kitware.com/cmake/cmake)
 - [`ninja`](https://github.com/ninja-build/ninja)
 - `qt6-shadertools`
+- `pkgconf` (provides `pkg-config`)
 
-> [!IMPORTANT]
-> The commands below (and in the "Updating" section) assume `$XDG_CONFIG_HOME` is set.
-> If it is unset, substitute it with the path to your config folder (typically `~/.config`).
+The plugin requires Qt **6.9 or newer** and development files for the libraries above.
 
-To install the shell manually, install all dependencies and clone this repo (or your fork). Then build and install using `cmake`.
+### Build and install
+
+Run these commands in a terminal inside your Mango session after installing the dependencies:
 
 ```sh
-# Clone the repository
-git clone https://github.com/YOUR-USERNAME/caelestia.git
-cd caelestia
+# Download this fork into your home directory.
+git clone https://github.com/evoziosk/caelestia-shell-mango.git "$HOME/caelestia-shell-mango"
+cd "$HOME/caelestia-shell-mango"
 
-# Build and install
-cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/
-cmake --build build
+# Configure once, then compile using two jobs to keep memory usage modest.
+cmake -S . -B build -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INSTALL_PREFIX=/
+cmake --build build --parallel 2
+
+# Install the shell and its compiled QML plugins; sudo may ask for your password.
 sudo cmake --install build
+
+# Start the installed shell.
+qs -c caelestia
 ```
 
-This will install the shell to `/etc/xdg/quickshell/caelestia` systemwide.
+Already cloned this repository? Start at `cd` using your checkout's actual location and skip `git clone`.
+On systems with enough memory, increase `--parallel 2` to build faster. If compilation is killed due to low memory, use `--parallel 1`.
+
+The default install puts the shell in `/etc/xdg/quickshell/caelestia`, QML plugins in
+`/usr/lib/qt6/qml`, and helper executables in `/usr/lib/caelestia`. Configure and build as your regular user;
+only installation needs sudo. No username substitution or `XDG_CONFIG_HOME` setup is required.
+
+For source changes, install the compiled plugins once, then preview your checkout with:
+
+```sh
+qs -p "$HOME/caelestia-shell-mango/shell.qml"
+```
+
+Stop the other Caelestia instance before previewing. Changes to C++ plugins require rebuilding,
+installing, and restarting Quickshell; editing QML alone can be previewed from the checkout.
 
 > [!TIP]
-> You can customise the installation location via the CMake flags `INSTALL_LIBDIR`, `INSTALL_QMLDIR`, and
-> `INSTALL_QSCONFDIR` for the libraries (e.g. the version helper), QML plugin, and Quickshell config directories
-> respectively. If you set the `INSTALL_LIBDIR` flag, the `CAELESTIA_LIB_DIR` variable must also be set to
-> the same directory in your system's environment.
->
-> For example, installing to `~/.config/quickshell/caelestia` for easy local changes:
->
-> ```sh
-> mkdir -p ~/.config/quickshell/caelestia
-> cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/ -DINSTALL_QSCONFDIR="$HOME/.config/quickshell/caelestia"
-> cmake --build build
-> sudo cmake --install build
-> sudo chown -R $USER ~/.config/quickshell/caelestia
-> ```
+> CMake also accepts `INSTALL_LIBDIR`, `INSTALL_QMLDIR`, and `INSTALL_QSCONFDIR` to override installation paths.
+> If you change `INSTALL_LIBDIR`, set `CAELESTIA_LIB_DIR` to the same absolute directory in your session.
+> A config at `${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/caelestia` takes precedence over the system config;
+> an old copy there can hide newly installed fixes. Use `qs -p /etc/xdg/quickshell/caelestia/shell.qml`
+> to explicitly launch the system installation.
 
 ## Usage
 
@@ -175,13 +211,13 @@ The shell can be started via `qs -c caelestia` or by launching Quickshell with t
 To autostart the shell with MangoWC, add this to your MangoWC config:
 
 ```
-exec-once = qs -c caelestia
+exec_once= qs -c caelestia
 ```
 
 Or if using caelestia-cli:
 
 ```
-exec-once = caelestia shell -d
+exec_once= caelestia shell -d
 ```
 
 ### Shortcuts/IPC
@@ -189,24 +225,28 @@ exec-once = caelestia shell -d
 > [!NOTE]
 > MangoWC doesn't support Hyprland's global shortcuts via DBus. You'll need to configure keybinds directly in your MangoWC config using `mmsg` commands or by invoking the caelestia CLI.
 
-Example MangoWC keybinds for common shell functions:
+The shell does not automatically register Mango keybindings. Add these to `~/.config/mango/config.conf`:
 
+```ini
+# Tap Super to toggle the launcher; Super+Space also works.
+bindr=SUPER,Super_L,spawn,qs ipc -c caelestia call drawers toggle launcher
+bindr=SUPER,Super_R,spawn,qs ipc -c caelestia call drawers toggle launcher
+bind=SUPER,space,spawn,qs ipc -c caelestia call drawers toggle launcher
+
+bind=SUPER,d,spawn,qs ipc -c caelestia call drawers toggle dashboard
+bind=SUPER,u,spawn,qs ipc -c caelestia call drawers toggle utilities
+bind=SUPER,l,spawn,qs ipc -c caelestia call lock lock
 ```
-# Toggle launcher
-bind = SUPER, SPACE, exec, caelestia shell drawers toggle launcher
 
-# Toggle dashboard
-bind = SUPER, D, exec, caelestia shell drawers toggle dashboard
+These commands use Quickshell directly and do not require `caelestia-cli`. A ready-to-source copy is in
+[`assets/mango-keybinds.conf`](assets/mango-keybinds.conf). Remove conflicting bindings for the same keys,
+and reload Mango with `mmsg dispatch reload_config`. Super-only bindings run on key release;
+see [Mango's modifier-key binding syntax](https://mangowm.github.io/docs/bindings/keys/).
+If you prefer only Super+Space, omit the two `bindr` lines.
 
-# Toggle utilities
-bind = SUPER, U, exec, caelestia shell drawers toggle utilities
-
-# Lock screen
-bind = SUPER, L, exec, caelestia shell lock lock
-
-# Screenshot picker
-bind = , PRINT, exec, caelestia shell picker open
-```
+If you have no user config and Mango uses `/etc/mango/config.conf`, preserve those defaults by starting
+`~/.config/mango/config.conf` with `source=/etc/mango/config.conf`, then add the bindings above.
+The launcher requests keyboard focus and focuses its search field whenever opened, including through IPC.
 
 All IPC commands can be accessed via `caelestia shell ...` if you have caelestia-cli installed. For example:
 
@@ -218,7 +258,7 @@ You can view the list of available IPC commands by running `caelestia shell -s`.
 
 ### PFP/Wallpapers
 
-The profile picture for the dashboard is read from the file `~/.face`. You can set it by clicking it in the dashboard,
+The dashboard and lock screen read the profile picture from `~/.face`. If it does not exist, they show a person icon. You can set it by clicking it in the dashboard,
 or by manually copying or symlinking your image to the path.
 
 The wallpapers for the wallpaper switcher are read from `~/Pictures/Wallpapers`
@@ -230,16 +270,20 @@ Use `caelestia wallpaper -h` for more info about this command.
 
 ## Updating
 
-To update your installation, pull the latest changes and rebuild:
+From your checkout, pull updates, reconfigure, rebuild, and install:
 
 ```sh
-cd /path/to/caelestia
-git pull
-cmake --build build
+cd "$HOME/caelestia-shell-mango"
+git pull --ff-only
+cmake -S . -B build
+cmake --build build --parallel 2
 sudo cmake --install build
 ```
 
-Then restart Quickshell to load the updated shell.
+Reconfiguration keeps your existing installation settings and refreshes build metadata.
+If Git reports local changes or divergent history, resolve those before updating.
+Stop the running Caelestia instance with Ctrl+C in its terminal, then run `qs -c caelestia` again.
+Restart after updates to compiled plugins as well as QML files.
 
 ## Configuring
 
@@ -253,7 +297,7 @@ You can configure per-monitor options in `~/.config/caelestia/monitors/<monitor_
 List the names of your available monitors by running:
 
 ```sh
-hyprctl monitors -j | jq -r '.[].name'
+mmsg get all-monitors | jq -r '.monitors[].name'
 ```
 
 Options set in these files will **override** the respective options in the global config. Any options not present in
@@ -1015,7 +1059,7 @@ Per-monitor token overrides are also available at
 
 ### Home Manager Module
 
-For NixOS users, a Home Manager module is also available.
+The following Home Manager example is inherited from upstream. It does not install this Mango fork; the upstream package targets Hyprland. Use the manual build instructions above for this port.
 
 <details><summary><code>home.nix</code></summary>
 
@@ -1045,7 +1089,7 @@ programs.caelestia = {
 };
 ```
 
-The module automatically adds the shell to the path with **full functionality**. The CLI is not required; however, you can enable and configure it.
+The upstream module can configure upstream Caelestia and its optional CLI; Mango-specific packaging would need to use this fork.
 
 </details>
 
@@ -1061,7 +1105,49 @@ Nope! This fork is specifically adapted for MangoWC. If you want to use Hyprland
 
 ### Window previews don't show live thumbnails!
 
-Window toplevel screencopy requires the `hyprland-toplevel-export-v1` protocol, which MangoWC does not implement. The shell provides graceful degradation: the window info panel remains fully functional and displays the window title, class, and position with a clean placeholder rather than an empty box or failing completely.
+The bar popout and window-info panel capture the selected window through Mango's standard Wayland capture protocols using `grim -T`. Frames refresh at up to five per second while the preview is visible; capture stops when it closes. This captures window content directly, including content obscured by other windows.
+
+Check that `grim -h` lists `-T`, and that `mmsg get all-clients` includes `foreign_toplevel_id` for clients. Rebuild, install, and restart the shell after updating: the previews use a compiled `Caelestia.Images` component. If capture is unavailable, window titles and metadata still work. Older Mango or grim versions may need an upgrade.
+
+### Notifications say a server is already registered
+
+Only one process can own `org.freedesktop.Notifications`. Check the current owner:
+
+```sh
+busctl --user status org.freedesktop.Notifications
+```
+
+If it reports `dms.service`, Dank Linux Shell already owns notifications. To use Caelestia as your shell,
+stop DMS with `systemctl --user stop dms.service` and remove its autostart entry if you no longer want it.
+For other owners such as Mako, Dunst, or SwayNC, stop the corresponding notification daemon.
+Quickshell retries registration when the existing owner exits.
+
+### Audio shows only Dummy Output
+
+Check `wpctl status` and `pactl list cards`. If the hardware card exists but its active profile is `off`,
+select an available speaker or headphone profile, then select that output as the default.
+Caelestia displays the outputs provided by PipeWire; it cannot create missing hardware outputs.
+If profile activation fails, check `journalctl --user -u pipewire -u wireplumber` and the login session's
+permissions on `/dev/snd`. A previous permission failure can leave the card switched off even after
+access has been restored.
+
+### Qt text-input warnings on focus changes
+
+A `qt.qpa.wayland.textinput` warning can still appear when Qt's text-input surface state and keyboard
+focus change at different times. The launcher avoids redundant focus requests and has been tested
+for automatic typing focus on first open and reopen. The remaining `disableSurface` warning was
+reproduced during testing; it has not been eliminated. Do not disable input-method support just to hide it.
+
+### Workspace clicks work only once
+
+Update and reinstall this fork, then restart Caelestia. The adapter now uses `view` for direct switches;
+`comboview` retains keyboard-combination state and can accumulate tags across mouse clicks.
+See the [Mango dispatcher reference](https://mangowm.github.io/docs/bindings/keys/).
+
+### Updates are installed but the old warnings remain
+
+Check the configuration path printed at launch. A user copy can override the system installation.
+Also rebuild and install the C++ plugins, then restart Quickshell; copying QML alone does not update them.
 
 ### How does screen recording work?
 

@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Wayland
+import Caelestia.Images
 import Caelestia.Config
 import Caelestia.I18n
 import qs.components
@@ -63,14 +63,12 @@ Item {
             }
         }
 
-        ScreencopyView {
+        WindowCapture {
             id: view
 
             anchors.centerIn: parent
-            visible: hasContent
-
-            captureSource: root.client?.wayland ?? null // qmllint disable unresolved-type
-            live: true
+            identifier: root.client?.captureIdentifier ?? ""
+            active: visible && (QsWindow.window?.visible ?? false)
 
             constraintSize.width: root.client ? parent.height * Math.min(root.screen.width / root.screen.height, root.client?.lastIpcObject.size[0] / root.client?.lastIpcObject.size[1]) : parent.height
             constraintSize.height: parent.height

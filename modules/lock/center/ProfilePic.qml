@@ -47,6 +47,7 @@ Item {
 
         anchors.fill: shape
         path: `${Paths.home}/.face`
+        allowMissing: true
 
         layer.enabled: true
         layer.effect: Mask {
