@@ -3,6 +3,7 @@
 /.qmlls.ini
 build/
 .cache/
+logs
 
 # Personal development notes and temporary files
 CHANGES.txt
@@ -22,5 +23,3 @@ test-mangowc-ipc.sh
 *.swp
 *.swo
 *~
-
-logs

@@ -11,6 +11,7 @@ QtObject {
     readonly property var toplevels: Services.Mango.toplevels
     readonly property var workspaces: Services.Mango.workspaces
     readonly property var monitors: Services.Mango.monitors
+    readonly property bool usingLua: false
 
     readonly property var activeToplevel: Services.Mango.activeToplevel
     readonly property var focusedWorkspace: Services.Mango.focusedWorkspace
@@ -38,6 +39,14 @@ QtObject {
         Services.Mango.dispatch(request);
     }
 
+    function focusWorkspace(ws: var): void {
+        dispatch(`workspace ${ws}`);
+    }
+
+    function toggleSpecial(name: string): void {
+        dispatch(`togglespecialworkspace ${name}`);
+    }
+
     function cycleSpecialWorkspace(direction: string): void {
         const openSpecials = workspaces.values.filter(w => w.name.startsWith("special:") && w.lastIpcObject.windows > 0);
 
@@ -50,11 +59,11 @@ QtObject {
             if (lastSpecialWorkspace) {
                 const workspace = workspaces.values.find(w => w.name === lastSpecialWorkspace);
                 if (workspace && workspace.lastIpcObject.windows > 0) {
-                    dispatch(`workspace ${lastSpecialWorkspace}`);
+                    focusWorkspace(lastSpecialWorkspace);
                     return;
                 }
             }
-            dispatch(`workspace ${openSpecials[0].name}`);
+            focusWorkspace(openSpecials[0].name);
             return;
         }
 
@@ -68,7 +77,7 @@ QtObject {
                 nextIndex = (currentIndex - 1 + openSpecials.length) % openSpecials.length;
         }
 
-        dispatch(`workspace ${openSpecials[nextIndex].name}`);
+        focusWorkspace(openSpecials[nextIndex].name);
     }
 
     function monitorNames(): list<string> {
@@ -77,6 +86,22 @@ QtObject {
 
     function monitorFor(screen): var {
         return Services.Mango.monitorFor(screen);
+    }
+
+    function trimWsName(name: string): string {
+        return name.startsWith("special:") ? name.slice("special:".length) : name;
+    }
+
+    function toplevelsForWs(ws: int, ignoredTags = []): var {
+        return toplevels.values.filter(t => t.workspace && t.workspace.id === ws && !isToplevelIgnored(t, ignoredTags));
+    }
+
+    function isToplevelIgnored(toplevel, ignoredTags = []): bool {
+        const ipc = toplevel?.lastIpcObject;
+        if (!ipc?.class || !ipc.mapped)
+            return true;
+
+        return ipc.tags?.some(tag => ignoredTags.includes(tag.replace(/\*$/, ""))) ?? false;
     }
 
     function reloadDynamicConfs(): void {

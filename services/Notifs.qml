@@ -6,9 +6,10 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Notifications
 import Caelestia
+import Caelestia.Config
+import Caelestia.I18n
 import qs.components.misc
 import qs.services
-import qs.config
 import qs.utils
 
 Singleton {
@@ -30,21 +31,21 @@ Singleton {
     }
 
     function shouldShowPopup(): bool {
-        if (props.dnd || [...Visibilities.screens.values()].some(v => v.sidebar))
+        if (props.dnd || ShellState.anySidebarOpen())
             return false;
-        if (Config.notifs.fullscreen === "off" && hasFullscreen())
+        if (GlobalConfig.notifs.fullscreen === NotifsFullscreen.Off && hasFullscreen())
             return false;
         return true;
     }
 
     onDndChanged: {
-        if (!Config.utilities.toasts.dndChanged)
+        if (!GlobalConfig.utilities.toasts.dndChanged)
             return;
 
         if (dnd)
-            Toaster.toast(qsTr("Do not disturb enabled"), qsTr("Popup notifications are now disabled"), "do_not_disturb_on");
+            Toaster.toast(Tr.tr("Do not disturb enabled"), Tr.tr("Popup notifications are now disabled"), "do_not_disturb_on");
         else
-            Toaster.toast(qsTr("Do not disturb disabled"), qsTr("Popup notifications are now enabled"), "do_not_disturb_off");
+            Toaster.toast(Tr.tr("Do not disturb disabled"), Tr.tr("Popup notifications are now enabled"), "do_not_disturb_off");
     }
 
     onListChanged: {
@@ -105,18 +106,27 @@ Singleton {
     FileView {
         id: storage
 
+        printErrors: false
         path: `${Paths.state}/notifs.json`
         onLoaded: {
             const data = JSON.parse(text());
-            for (const notif of data)
-                root.list.push(notifComp.createObject(root, notif));
+            for (const notif of data) {
+                const properties = Object.assign({}, notif);
+
+                // Backwards compatibility for old notifications
+                if (properties.notificationId === undefined && properties.id !== undefined)
+                    properties.notificationId = properties.id;
+
+                delete properties.id;
+                root.list.push(notifComp.createObject(root, properties));
+            }
             root.list.sort((a, b) => b.time - a.time);
             root.loaded = true;
         }
         onLoadFailed: err => {
             if (err === FileViewError.FileNotFound) {
                 root.loaded = true;
-                setText("[]");
+                Qt.callLater(() => setText("[]"));
             }
         }
     }

@@ -4,8 +4,9 @@ import QtQuick
 import Quickshell
 import Quickshell.Services.Notifications
 import Caelestia
+import Caelestia.Config
+import Caelestia.I18n
 import qs.services
-import qs.config
 import qs.utils
 
 QtObject {
@@ -16,7 +17,20 @@ QtObject {
     property var locks: new Set()
 
     property date time: new Date()
-    property string timeStr: qsTr("now")
+    property int ageMins: 0
+    readonly property string timeStr: {
+        if (ageMins < 1)
+            return Tr.tr("now");
+
+        const h = Math.floor(ageMins / 60);
+        const d = Math.floor(h / 24);
+
+        if (d > 0)
+            return Tr.trCtx("%1d", "abbreviated notification age, days").arg(d);
+        if (h > 0)
+            return Tr.trCtx("%1h", "abbreviated notification age, hours").arg(h);
+        return Tr.trCtx("%1m", "abbreviated notification age, minutes").arg(ageMins);
+    }
 
     readonly property Timer timeStrTimer: Timer {
         running: !notif.closed
@@ -26,24 +40,35 @@ QtObject {
     }
 
     property Notification notification
-    property string id
+    property string notificationId
     property string summary
     property string body
     property string appIcon
     property string appName
     property string image
     property var hints // Hints are not persisted across restarts
-    property real expireTimeout: Config.notifs.defaultExpireTimeout
+    property real expireTimeout: GlobalConfig.notifs.defaultExpireTimeout
     property int urgency: NotificationUrgency.Normal
     property bool resident
     property bool hasActionIcons
     property list<var> actions
 
+    readonly property bool hasFullscreen: {
+        const monitor = Hypr.focusedMonitor;
+        const specialName = monitor?.lastIpcObject.specialWorkspace?.name;
+        if (specialName) {
+            const specialWs = Hypr.workspaces.values.find(ws => ws.name === specialName);
+            return specialWs?.toplevels.values.some(t => t.lastIpcObject.fullscreen > 1) ?? false;
+        }
+        return monitor?.activeWorkspace?.toplevels.values.some(t => t.lastIpcObject.fullscreen > 1) ?? false;
+    }
+
     readonly property Timer timer: Timer {
         running: true
-        interval: notif.expireTimeout > 0 ? notif.expireTimeout : Config.notifs.defaultExpireTimeout
+        interval: notif.expireTimeout > 0 ? notif.expireTimeout : notif.hasFullscreen ? GlobalConfig.notifs.fullscreenExpireTimeout : GlobalConfig.notifs.defaultExpireTimeout
         onTriggered: {
-            if (Config.notifs.expire)
+            // Always expire if the active workspace has a fullscreen window
+            if (GlobalConfig.notifs.expire || notif.hasFullscreen)
                 notif.popup = false;
         }
     }
@@ -54,17 +79,17 @@ QtObject {
         // qmllint disable uncreatable-type
         PanelWindow {
             // qmllint enable uncreatable-type
-            implicitWidth: Config.notifs.sizes.image
-            implicitHeight: Config.notifs.sizes.image
+            implicitWidth: TokenConfig.sizes.notifs.image
+            implicitHeight: TokenConfig.sizes.notifs.image
             color: "transparent"
             mask: Region {}
 
             Image {
                 function tryCache(): void {
-                    if (status !== Image.Ready || width != Config.notifs.sizes.image || height != Config.notifs.sizes.image)
+                    if (status !== Image.Ready || width != TokenConfig.sizes.notifs.image || height != TokenConfig.sizes.notifs.image)
                         return;
 
-                    const cacheKey = notif.appName + notif.summary + notif.id;
+                    const cacheKey = notif.appName + notif.summary + notif.notificationId + notif.image;
                     let h1 = 0xdeadbeef, h2 = 0x41c6ce57, ch;
                     for (let i = 0; i < cacheKey.length; i++) {
                         ch = cacheKey.charCodeAt(i);
@@ -77,7 +102,6 @@ QtObject {
                     h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
                     const hash = (h2 >>> 0).toString(16).padStart(8, 0) + (h1 >>> 0).toString(16).padStart(8, 0);
 
-                    Paths; // Screw you qmlls
                     const cache = `${Paths.notifimagecache}/${hash}.png`;
                     CUtils.saveItem(this, Qt.resolvedUrl(cache), () => {
                         notif.image = cache;
@@ -122,8 +146,7 @@ QtObject {
 
         function onImageChanged(): void {
             notif.image = notif.notification.image;
-            if (notif.notification?.image)
-                notif.dummyImageLoader.active = true;
+            notif.maybeTriggerDummyImageLoader();
         }
 
         function onExpireTimeoutChanged(): void {
@@ -162,25 +185,26 @@ QtObject {
     function updateTimeStr(): void {
         const diff = Date.now() - time.getTime();
         const m = Math.floor(diff / 60000);
+        ageMins = m;
 
         if (m < 1) {
-            timeStr = qsTr("now");
             timeStrTimer.interval = 5000;
         } else {
             const h = Math.floor(m / 60);
             const d = Math.floor(h / 24);
 
-            if (d > 0) {
-                timeStr = `${d}d`;
+            if (d > 0)
                 timeStrTimer.interval = 3600000;
-            } else if (h > 0) {
-                timeStr = `${h}h`;
+            else if (h > 0)
                 timeStrTimer.interval = 300000;
-            } else {
-                timeStr = `${m}m`;
+            else
                 timeStrTimer.interval = m < 10 ? 30000 : 60000;
-            }
         }
+    }
+
+    function maybeTriggerDummyImageLoader(): void {
+        if (image && !image.startsWith("image://icon/") && !image.startsWith(Paths.notifimagecache))
+            dummyImageLoader.active = true;
     }
 
     function lock(item: Item): void {
@@ -206,14 +230,13 @@ QtObject {
         if (!notification)
             return;
 
-        id = notification.id;
+        notificationId = notification.id;
         summary = notification.summary;
         body = notification.body;
         appIcon = notification.appIcon;
         appName = notification.appName;
         image = notification.image;
-        if (notification?.image)
-            dummyImageLoader.active = true;
+        maybeTriggerDummyImageLoader();
         expireTimeout = notification.expireTimeout;
         hints = notification.hints;
         urgency = notification.urgency;
