@@ -49,6 +49,40 @@ class MangoSetupTest(unittest.TestCase):
                     config_helper.configure(config, ROOT / "assets/mango-keybinds.conf", True, True)
             self.assertEqual(toml.read_text(), "[global]\n")
 
+    def test_full_profile_replaces_conflicts_preserving_sources_and_mouse_keys(self):
+        with tempfile.TemporaryDirectory() as folder:
+            directory = Path(folder)
+            source = directory / "defaults.conf"
+            source.write_text("bind=SUPER,n,switch_layout\naxisbind=SUPER,DOWN,viewtoright_have_client\nmousebind=SUPER,btn_left,moveresize,curmove\nblur=1\n")
+            rules = directory / "blur.conf"
+            rules.write_text("layer_rule=layer_name:^caelestia-drawers$,no_blur:1\n")
+            config = directory / "config.conf"
+            config.write_text("source=defaults.conf\nsource=blur.conf\n")
+            original_source = source.read_text()
+            profile = ROOT / "assets/mango-keybinds-full.conf"
+            with self.assertRaises(ValueError):
+                config_helper.configure(config, profile, True, False, dry_run=True)
+            config_helper.configure(config, profile, True, False, True, 31)
+            text = config.read_text()
+            self.assertNotIn("switch_layout", text)
+            self.assertNotIn("viewtoright_have_client", text)
+            self.assertIn(f"source={rules}", text)
+            self.assertIn("tag_num=31", text)
+            self.assertEqual(text.count("mousebind=SUPER,btn_left"), 1)
+            self.assertEqual(source.read_text(), original_source)
+            config_helper.configure(config, profile, True, False, True, 31)
+            self.assertEqual(config.read_text(), text)
+
+    def test_preview_does_not_write_and_common_mode_conflicts_are_detected(self):
+        with tempfile.TemporaryDirectory() as folder:
+            config = Path(folder) / "config.conf"
+            config.write_text("blur=0\n")
+            config_helper.configure(config, ROOT / "assets/mango-keybinds.conf", True, dry_run=True)
+            self.assertEqual(config.read_text(), "blur=0\n")
+            config.write_text("key_mode=common\nbindl=SUPER,d,spawn,other-app\n")
+            with self.assertRaises(ValueError):
+                config_helper.configure(config, ROOT / "assets/mango-keybinds.conf", True)
+
 
 class InstallerTest(unittest.TestCase):
     def test_invalid_jobs_and_help(self):

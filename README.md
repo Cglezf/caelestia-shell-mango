@@ -60,6 +60,7 @@ Every contribution helps keep this project maintained and supports future improv
 - Keyboard layouts come from the Wayland keymap; layout selection uses Mango's one-based switch command. Caps Lock and Num Lock use keyboard modifiers and Linux LED state.
 - Game mode translates animation, blur, shadow, gap, border, rounding, and tearing settings into Mango options and restores the configured values when disabled.
 - Original shell shortcut actions are exposed through a native IPC registry, and the bundled Mango bindings include screenshot, sidebar, session, game-mode, nexus, and idle-inhibition actions.
+- An optional full Caelestia-style profile adds workspace groups, window/group actions, application shortcuts, clipboard, recording, media, and shell controls. The installer previews conflicts and can replace matching keys using a backed-up local snapshot.
 - Outside clicks dismiss modal drawers and detached popouts; clicks inside their controls remain interactive.
 - Wallpaper selection and persistence work without caelestia-cli. A direct Matugen backend generates dynamic Material palettes, previews, light/dark modes, and variants; queued requests discard outdated results.
 - Dynamic colours also follow changes to the saved wallpaper path without the CLI, including changes made outside the shell. Reapplying the same wallpaper regenerates its palette.
@@ -323,6 +324,62 @@ Mango. Runtime synchronization skips configs that do not source its fragment. Re
 global blur settings if desired.
 
 ### Shortcuts/IPC
+
+#### Full Caelestia-style keybindings
+
+The original Caelestia keybinding list belongs to its compositor configuration, rather than the shell
+itself. This fork provides two profiles: [minimal shell controls](assets/mango-keybinds.conf) and an
+optional [full upstream-style profile](assets/mango-keybinds-full.conf). Choose **full upstream-style**
+during `./install.sh` shortcut setup. The installer shows conflicts before offering replacement;
+do not source both profiles together.
+
+Replacement backs up your config and snapshots included files containing matching profile keys,
+removing those old bindings from the snapshot. Original system/source files are preserved. Unrelated
+sources, including the generated blur fragment, remain live. Snapshot sections do not inherit future
+edits to their original files; rerun setup or merge those updates manually. TOML/managed configs need
+declarative setup. Mouse, scroll, release, and common-mode bindings are included in conflict checks.
+
+| Category | Full profile behavior |
+|---|---|
+| Workspaces | Super+1–9/0 selects a slot in the current ten-tag group; Super+Alt moves the window. Ctrl+Super selects a group while preserving the slot; add Alt to move the window. Arrow/Page Up/Page Down/scroll variants follow the listed upstream modifiers. |
+| Special overlay | Super+S toggles the native overlay. Super+Alt+S or Ctrl+Super+Shift+Up moves a window in; Ctrl+Super+Shift+Down returns a special window to its previous normal tag. |
+| Window groups | Alt+Tab / Shift+Alt+Tab cycles group members; Ctrl+Alt+Tab variants cycle visible stacks, including ungrouped windows. Super+U leaves the group; Super+Comma joins the right neighbor or leaves the current group. |
+| Window actions | Directional focus/movement, Super+mouse drag/resize, center, normalize to 55×70%, picture-in-picture, pin, fullscreen, maximize, floating, and close. Split-movement keys map to Mango's layout-dependent `move_client`, rather than Hyprland split-tree operations. Picture-in-picture enables a floating, pinned window at 30% size in the lower-right corner. |
+| Named app toggles | Ctrl+Shift+Escape: `foot`/`btop`; Super+M: `foot`/`ncspot`; Super+D: `vesktop`; Super+R: `foot`/`taskwarrior-tui`. These use named single-app scratchpads, rather than separate multi-window special workspaces. Edit the profile's commands/app IDs to use your preferred apps. |
+| Applications | Super+T/W/C/E launches `foot`/`firefox`/`codium`/`thunar`; Ctrl+Alt+V launches `pwvucontrol`. Set the corresponding `CAELESTIA_APP_*` variable (suffix `TERMINAL`, `BROWSER`, `EDITOR`, `FILES`, or `AUDIO`) in Mango's environment before session startup to override these commands. |
+| Utilities | Print saves/copies a screenshot of the focused output; Super+Shift+S opens the frozen picker; add Alt for the region picker. Ctrl+Alt+R / Super+Alt+R / Super+Shift+Alt+R toggles fullscreen/sound/region recording. Super+Shift+C copies a picked colour. |
+| Media | Ctrl+Super+Space/Equal/Minus/Backspace controls play/pause, next, previous, stop; Super+Shift+M toggles audio mute. |
+| Shell | Ctrl+Alt+Delete opens session; Super+N toggles sidebar; Ctrl+Alt+C clears notifications; Super+K toggles panels; Super+L locks; Super+Shift+L runs `systemctl suspend`. Ctrl+Super+Alt+R restarts Caelestia; Ctrl+Super+Shift+R closes its instances. |
+| Clipboard/emoji | Super+V opens history, Super+Alt+V deletes entries, Ctrl+Shift+Alt+V pastes the newest entry, Super+Period opens the emoji picker. Clipboard history requires an existing collector such as `wl-paste --watch cliphist store`; the installer does not start one implicitly. |
+
+The full profile reserves **Super+U for ungrouping**, **Super+D for communication**, and
+**Ctrl+Super+Space for media**. Dashboard and utilities move to Super+B and Super+Y.
+Mango supports up to 31 tags: enable 31 in the installer for group navigation, or choose your own
+`tag_num` (at least 10 for Super+0). Out-of-range group requests show feedback instead of selecting an
+unrelated tag. The ten-slot scheme supports three complete groups and tag 31; it cannot provide
+Hyprland's unbounded workspace groups.
+
+Unmapped upstream features: group locking (Super+Shift+Comma), the extra Super+Z/X mouse aliases,
+and lock-surface restoration (Super+Alt+L). Standard Super+left/right mouse drag/resize remains available;
+the full profile does not bypass authentication or recreate a lock surface by unlocking it.
+
+Optional tools: `cliphist`, `fuzzel`, `wl-clipboard`, `wtype` (latest-entry paste), `hyprpicker`
+(a Wayland colour picker that also works outside Hyprland), and your chosen apps. The installer can
+install the clipboard/colour-picker tools on Arch. Emoji selection uses the optional `caelestia-cli`
+emoji picker, which has no Hyprland compositor dependency. Recording uses the shell's native recorder.
+
+Preview the full profile without changing your config:
+
+```sh
+python3 scripts/install-mango-config.py --keybinds \
+  --bindings-file assets/mango-keybinds-full.conf --check
+```
+
+For custom installation paths, update the helper path in the profile. Nix packaging rewrites it to
+the package's installed asset directory. Native command mappings follow
+[Mango's dispatcher reference](https://mangowm.github.io/docs/bindings/keys/).
+
+#### Minimal shell controls
 
 > [!NOTE]
 > Mango bindings invoke Quickshell IPC. Original shell actions are also available with `qs ipc -c caelestia call shortcuts trigger <name>`; list them with `qs ipc -c caelestia call shortcuts list`.
@@ -1336,6 +1393,12 @@ Checks completed on Mango 0.18.0 and the installed Quickshell/Qt stack:
   without missing-icon warnings. The standalone Qt focus warning remains reproducible.
 - Installer prerequisite checks and a mocked interactive build/install flow; Mango config backups,
   repeated setup, source-file bindings, key conflicts, and managed-config preservation.
+- Full-profile workspace arithmetic/bounds, native dispatch encoding, common-mode/mouse/scroll
+  conflict replacement, snapshot idempotence, and preserved dynamic sources. Mango's `-p` config
+  checker accepts a full-profile migration of the tested configuration; recording IPC loads without errors.
+- Window normalization and picture-in-picture were verified on a disposable Mango window, including
+  size, floating state, pinning, and placement. Native group joining, member cycling, and leaving
+  were verified on two disposable windows in an otherwise empty tag.
 
 Run the deterministic Python and JavaScript checks from the repository:
 

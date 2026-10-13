@@ -19,6 +19,10 @@
   gpu-screen-recorder,
   python3,
   matugen,
+  cliphist,
+  fuzzel,
+  wtype,
+  hyprpicker,
   wayland,
   libxkbcommon,
   material-symbols,
@@ -61,6 +65,10 @@
       gpu-screen-recorder
       python3
       matugen
+      cliphist
+      fuzzel
+      wtype
+      hyprpicker
     ]
     ++ extraRuntimeDeps
     ++ lib.optional withCli caelestia-cli;
@@ -137,6 +145,8 @@ in
     dontStrip = debug;
 
     prePatch = ''
+      substituteInPlace assets/mango-keybinds-full.conf \
+        --replace-fail /etc/xdg/quickshell/caelestia/assets ${placeholder "out"}/share/caelestia-shell/assets
       substituteInPlace assets/pam.d/fprint \
         --replace-fail pam_fprintd.so /run/current-system/sw/lib/security/pam_fprintd.so
       substituteInPlace assets/pam.d/howdy \

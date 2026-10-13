@@ -68,6 +68,21 @@ Singleton {
         checkProc.running = true;
     }
 
+    IpcHandler {
+        function toggle(mode: string): void {
+            if (root.running)
+                root.stop();
+            else
+                root.start(mode === "region" ? ["-r"] : mode === "sound" ? ["-s"] : []);
+        }
+
+        function stop(): void {
+            root.stop();
+        }
+
+        target: "recorder"
+    }
+
     PersistentProperties {
         id: props
 

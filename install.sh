@@ -96,7 +96,8 @@ install_arch_dependencies() {
         libqalculate lm_sensors libcava quickshell-git qt6-m3shapes-git networkmanager
         power-profiles-daemon ddcutil brightnessctl app2unit fish bash swappy slurp grim
         matugen gpu-screen-recorder ttf-material-symbols-variable ttf-rubik-vf ttf-cascadia-code-nerd)
-    command -v mango >/dev/null 2>&1 || packages+=(mangowc)
+    if (($#)); then packages=("$@");
+    else command -v mango >/dev/null 2>&1 || packages+=(mangowc); fi
     for package in "${packages[@]}"; do
         pacman -Q "$package" >/dev/null 2>&1 && continue
         if pacman -Si "$package" >/dev/null 2>&1; then repository_packages+=("$package");
@@ -152,7 +153,27 @@ sudo cmake --install "$build_dir"
 
 if ask 'Configure Mango shortcuts and/or autostart?'; then
     setup_args=()
-    if ask 'Add Caelestia shortcuts (existing conflicts will be reported)?'; then setup_args+=(--keybinds); fi
+    if ask 'Add Caelestia shortcuts (existing conflicts will be reported)?'; then
+        setup_args+=(--keybinds)
+        if ask 'Use the full upstream-style profile instead of minimal shell controls?'; then
+            setup_args+=(--bindings-file /etc/xdg/quickshell/caelestia/assets/mango-keybinds-full.conf)
+            if ! python3 "$repo_dir/scripts/install-mango-config.py" "${setup_args[@]}" --check; then
+                printf 'Replacement snapshots sources containing profile keys; matching old keys are removed.\n'
+                printf 'Original files are preserved. Snapshot sections do not inherit future source edits; unrelated sources stay live.\n'
+                if ask 'Replace these conflicts using a backed-up local snapshot?'; then
+                    setup_args+=(--replace-conflicts)
+                else
+                    setup_args=()
+                fi
+            fi
+            if ((${#setup_args[@]})) && ask 'Enable 31 Mango tags for workspace groups (maximum supported)?'; then
+                setup_args+=(--tags 31)
+            fi
+            if command -v pacman >/dev/null 2>&1 && ask 'Install full-profile clipboard/colour-picker utilities?'; then
+                install_arch_dependencies cliphist fuzzel wl-clipboard wtype hyprpicker btop
+            fi
+        fi
+    fi
     if ask 'Start Caelestia automatically when Mango starts?'; then setup_args+=(--autostart); fi
     if ((${#setup_args[@]})); then
         python3 "$repo_dir/scripts/install-mango-config.py" "${setup_args[@]}" ||

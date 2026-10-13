@@ -11,6 +11,7 @@ Scope {
         GameMode;
         Notifs;
         Players;
+        Recorder;
         Brightness;
         Weather.reload();
 

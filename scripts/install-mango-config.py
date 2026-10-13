@@ -17,7 +17,61 @@ def binding_key(kind, value, mode):
         return None
     aliases = {"CTRL": "CONTROL", "SUPER": "LOGO", "MOD4": "LOGO", "ALT": "MOD1", "NONE": ""}
     modifiers = sorted(filter(None, (aliases.get(m.upper(), m.upper()) for m in parts[0].strip().split("+"))))
-    return mode, kind, "+".join(modifiers), parts[1].strip().lower()
+    family = "bindr" if kind.startswith("bind") and "r" in kind[4:] else "bind" if kind.startswith("bind") else "mousebind" if kind.startswith("mousebind") else "axisbind"
+    return mode, family, "+".join(modifiers), parts[1].strip().lower()
+
+
+def is_binding(kind):
+    return kind.startswith(("bind", "mousebind", "axisbind"))
+
+
+def lookup(bindings, key):
+    return bindings.get(key) or bindings.get(("common", *key[1:]))
+
+
+def snapshot_without_bindings(path, desired, mode="default", stack=None):
+    """Expand plain-conf sources into a local snapshot, removing only profile keys."""
+    stack = set() if stack is None else stack
+    path = path.expanduser().resolve()
+    if path in stack or path.suffix == ".toml":
+        raise ValueError(f"Cannot snapshot cyclic or TOML source: {path}")
+    stack.add(path)
+    lines = []
+    for raw in path.read_text().splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if "=" not in line:
+            lines.append(raw)
+            continue
+        kind, value = (part.strip() for part in line.split("=", 1))
+        if kind == "key_mode":
+            mode = value
+        if kind in ("source", "source_optional"):
+            child = Path(os.path.expandvars(value.strip('"\''))).expanduser()
+            child = child if child.is_absolute() else path.parent / child
+            if not child.exists() and kind == "source_optional":
+                continue
+            if child.suffix == ".toml":
+                raise ValueError(f"TOML sources need declarative migration: {child}")
+            found, _, child_mode = scan(child, mode=mode)
+            affected = any(key in desired or (key[0] == "common" and ("default", *key[1:]) in desired) for key in found)
+            if affected:
+                content, mode = snapshot_without_bindings(child, desired, mode, stack)
+                lines += [f"# Snapshot of {child}", content]
+            else:
+                # Keep dynamic rule fragments and unrelated sources live.
+                if not child.is_file():
+                    raise ValueError(f"Missing source: {child}")
+                lines.append(f"{kind}={child.resolve()}")
+                mode = child_mode
+        elif is_binding(kind):
+            key = binding_key(kind, value, mode)
+            match = ("default", *key[1:]) if key and key[0] == "common" else key
+            if match not in desired:
+                lines.append(raw)
+        else:
+            lines.append(raw)
+    stack.remove(path)
+    return "\n".join(lines), mode
 
 
 def scan(path, seen=None, mode="default"):
@@ -39,7 +93,7 @@ def scan(path, seen=None, mode="default"):
             found, started, mode = scan(child if child.is_absolute() else path.parent / child, seen, mode)
             bindings.update(found)
             autostart |= started
-        elif kind in ("bind", "bindr"):
+        elif is_binding(kind):
             key = binding_key(kind, value, mode)
             if key:
                 bindings[key] = (",".join(part.strip() for part in value.split(",")[2:]), path, number)
@@ -69,7 +123,7 @@ def write_backup(path, text):
         temporary.unlink(missing_ok=True)
 
 
-def configure(config, bindings_file, keybinds=False, autostart=False):
+def configure(config, bindings_file, keybinds=False, autostart=False, replace_conflicts=False, tags=None, dry_run=False):
     if config.is_symlink() or config.suffix == ".toml":
         raise ValueError("Managed/symlink or TOML config: add shortcuts and autostart declaratively; see README.md")
     existing, started, mode = scan(config)
@@ -82,21 +136,31 @@ def configure(config, bindings_file, keybinds=False, autostart=False):
         desired, _, _ = scan(bindings_file)
         if not desired:
             raise ValueError(f"No installed bindings found in {bindings_file}")
-        conflicts = [key for key, action in desired.items() if key in existing and existing[key][0] != action[0]]
-        if conflicts:
-            details = [f"{key[2]}+{key[3]} ({key[1]}, mode {key[0]}) at {existing[key][1]}:{existing[key][2]}" for key in conflicts]
+        conflicts = [key for key, action in desired.items() if lookup(existing, key) and lookup(existing, key)[0] != action[0]]
+        if conflicts and not replace_conflicts:
+            details = [f"{key[2]}+{key[3]} ({key[1]}, mode {key[0]}) at {lookup(existing, key)[1]}:{lookup(existing, key)[2]}" for key in conflicts]
             raise ValueError("Existing key conflicts; no configuration was changed:\n  " + "\n  ".join(details))
+        if conflicts:
+            original, mode = snapshot_without_bindings(config if config.exists() else Path("/etc/mango/config.conf"), desired)
+            existing = {key: action for key, action in existing.items() if key not in desired and ("default", *key[1:]) not in desired}
         for raw in bindings_file.read_text().splitlines():
             if "=" not in raw:
                 continue
             kind, value = (part.strip() for part in raw.split("=", 1))
-            if kind in ("bind", "bindr") and binding_key(kind, value, "default") not in existing:
+            if is_binding(kind) and not lookup(existing, binding_key(kind, value, "default")):
                 additions.append(raw)
         if additions:
             additions = ["key_mode=default", *additions, f"key_mode={mode}"]
     if autostart and not started:
         additions.append("exec_once=qs -c caelestia")
+    if tags is not None:
+        counts = re.findall(r"^tag_num\s*=\s*(\d+)\s*$", original, re.MULTILINE)
+        if not counts or int(counts[-1]) != tags:
+            additions.append(f"tag_num={tags}")
     if additions:
+        if dry_run:
+            print(f"Would update {config}; no files changed.")
+            return
         write_backup(config, original.rstrip() + "\n\n# Caelestia installer additions\n" + "\n".join(additions) + "\n")
         print(f"Updated: {config}")
     else:
@@ -108,11 +172,14 @@ def main():
     parser.add_argument("--keybinds", action="store_true")
     parser.add_argument("--autostart", action="store_true")
     parser.add_argument("--bindings-file", type=Path, default=DEFAULT_BINDINGS)
+    parser.add_argument("--replace-conflicts", action="store_true", help="Back up config and snapshot its sources, replacing only selected profile keys")
+    parser.add_argument("--tags", type=int, choices=range(1, 32), help="Set Mango tag count (1–31)")
+    parser.add_argument("--check", action="store_true", help="Report conflicts/planned changes without writing files")
     args = parser.parse_args()
     folder = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "mango"
     config = Path(os.environ["CAELESTIA_MANGO_CONFIG"]).expanduser() if os.environ.get("CAELESTIA_MANGO_CONFIG") else next(
         (p for p in [folder / "config.conf", folder / "config.toml"] if p.exists()), folder / "config.conf")
-    configure(config, args.bindings_file, args.keybinds, args.autostart)
+    configure(config, args.bindings_file, args.keybinds, args.autostart, args.replace_conflicts, args.tags, args.check)
 
 
 if __name__ == "__main__":
