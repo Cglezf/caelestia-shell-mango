@@ -96,7 +96,10 @@ def scan(path, seen=None, mode="default"):
         elif is_binding(kind):
             key = binding_key(kind, value, mode)
             if key:
-                bindings[key] = (",".join(part.strip() for part in value.split(",")[2:]), path, number)
+                action = [part.strip() for part in value.split(",")[2:]]
+                while action and not action[-1]:
+                    action.pop()
+                bindings[key] = (",".join(action), path, number)
         elif kind == "exec_once" and re.search(r"\bqs\s+-c\s+caelestia\b|\bcaelestia\s+shell\b", value):
             autostart = True
     return bindings, autostart, mode
