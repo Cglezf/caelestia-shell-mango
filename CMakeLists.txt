@@ -65,10 +65,12 @@ add_compile_definitions(
 
 add_compile_options(
     -Wall -Wextra -Wpedantic -Wshadow -Wconversion
-    -Wold-style-cast -Wnull-dereference -Wdouble-promotion
-    -Wformat=2 -Wfloat-equal -Woverloaded-virtual
+    -Wnull-dereference -Wdouble-promotion
+    -Wformat=2 -Wfloat-equal
     -Wsign-conversion -Wredundant-decls -Wswitch
     -Wunreachable-code
+    # C++-only: on the C sources (generated Wayland protocols) cc1 warns for each file
+    "$<$<COMPILE_LANGUAGE:CXX>:-Wold-style-cast;-Woverloaded-virtual>"
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
