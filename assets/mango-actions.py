@@ -75,9 +75,47 @@ def clipboard(delete=False, latest=False):
         run(["wtype", "-M", "ctrl", "-k", "v", "-m", "ctrl"])
 
 
+def app_command(name):
+    defaults = {"terminal": "foot", "browser": "firefox", "editor": "codium", "files": "thunar", "audio": "pwvucontrol"}
+    override = os.environ.get("CAELESTIA_APP_" + name.upper())
+    if override:
+        return shlex.split(override)
+    if name == "terminal":
+        settings = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "caelestia/shell.json"
+        if settings.is_file():
+            command = json.loads(settings.read_text()).get("general", {}).get("apps", {}).get("terminal")
+            if isinstance(command, list) and command and all(isinstance(arg, str) for arg in command):
+                # The launcher prefix includes -e for running an app; a terminal
+                # shortcut opens an interactive shell instead.
+                return command[:-1] if command[-1] in ("-e", "--command") else command
+    return shlex.split(defaults[name])
+
+
+def named_scratchpad(name):
+    apps = {"sysmon": "btop", "music": "ncspot", "todo": "taskwarrior-tui"}
+    if name == "communication":
+        dispatch("toggle_named_scratchpad", "vesktop", "", "vesktop")
+        return
+    program = apps[name]
+    if not shutil.which(program):
+        raise ValueError(f"Install {program} to use the {name} scratchpad")
+    terminal = app_command("terminal")
+    executable = Path(terminal[0]).name
+    appid = "caelestia-" + name
+    if executable == "alacritty":
+        command = [*terminal, "--class=" + appid, "-e", program]
+    elif executable == "foot":
+        command = [*terminal, "--app-id=" + appid, program]
+    else:
+        raise ValueError("Named terminal scratchpads support Alacritty and foot; edit their bindings for another terminal")
+    if "," in shlex.join(command):
+        raise ValueError("Mango scratchpad commands cannot contain commas")
+    dispatch("toggle_named_scratchpad", appid, "", shlex.join(command))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("workspace", "special-out", "group-toggle", "normalize", "pip", "screenshot", "clipboard", "clipboard-delete", "clipboard-latest", "emoji", "colour", "app", "restart", "kill"))
+    parser.add_argument("action", choices=("workspace", "special-out", "group-toggle", "normalize", "pip", "screenshot", "clipboard", "clipboard-delete", "clipboard-latest", "emoji", "colour", "app", "scratchpad", "restart", "kill"))
     parser.add_argument("args", nargs="*")
     options = parser.parse_args()
     action, args = options.action, options.args
@@ -125,11 +163,12 @@ def main():
         if result.returncode == 0 and result.stdout.strip():
             run(["wl-copy"], input=result.stdout.strip(), text=True)
     elif action == "app":
-        defaults = {"terminal": "foot", "browser": "firefox", "editor": "codium", "files": "thunar", "audio": "pwvucontrol"}
-        command = shlex.split(os.environ.get("CAELESTIA_APP_" + args[0].upper(), defaults[args[0]]))
+        command = app_command(args[0])
         if not command or not shutil.which(command[0]):
             raise ValueError(f"Install {command[0] if command else args[0]} or set CAELESTIA_APP_{args[0].upper()}")
         os.execvp(command[0], command)
+    elif action == "scratchpad":
+        named_scratchpad(args[0])
     elif action in ("kill", "restart"):
         instances = subprocess.run(["qs", "list", "-c", "caelestia", "--json"], capture_output=True, text=True)
         data = json.loads(instances.stdout) if instances.stdout.lstrip().startswith("[") else []

@@ -1,6 +1,9 @@
 import importlib.util
 from pathlib import Path
 import unittest
+import tempfile
+import os
+import json
 from unittest.mock import patch
 
 ROOT = Path(__file__).parents[1]
@@ -26,6 +29,23 @@ class WorkspaceActionsTest(unittest.TestCase):
             run.return_value.stdout = '{"success":true}'
             actions.dispatch("resizewin", 550, 700, "client", 12)
             self.assertEqual(run.call_args.args[0], ["mmsg", "dispatch", "resizewin,550,700,client,12"])
+
+
+class TerminalPreferenceTest(unittest.TestCase):
+    def test_launcher_prefix_opens_interactive_terminal_without_e(self):
+        with tempfile.TemporaryDirectory() as folder:
+            config = Path(folder) / "caelestia/shell.json"
+            config.parent.mkdir()
+            config.write_text(json.dumps({"general": {"apps": {"terminal": ["alacritty", "-e"]}}}))
+            with patch.dict(os.environ, {"XDG_CONFIG_HOME": folder}, clear=True):
+                self.assertEqual(actions.app_command("terminal"), ["alacritty"])
+                with patch.dict(os.environ, {"CAELESTIA_APP_TERMINAL": "alacritty --hold"}):
+                    self.assertEqual(actions.app_command("terminal"), ["alacritty", "--hold"])
+
+    def test_named_terminal_scratchpads_use_alacritty_class_and_e(self):
+        with patch.object(actions, "app_command", return_value=["alacritty"]), patch.object(actions.shutil, "which", return_value="/usr/bin/btop"), patch.object(actions, "dispatch") as dispatch:
+            actions.named_scratchpad("sysmon")
+            self.assertEqual(dispatch.call_args.args, ("toggle_named_scratchpad", "caelestia-sysmon", "", "alacritty --class=caelestia-sysmon -e btop"))
 
 
 if __name__ == "__main__":

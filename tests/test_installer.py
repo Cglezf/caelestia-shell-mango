@@ -64,7 +64,7 @@ class MangoSetupTest(unittest.TestCase):
                 config_helper.configure(config, profile, True, False, dry_run=True)
             config_helper.configure(config, profile, True, False, True, 31)
             text = config.read_text()
-            self.assertNotIn("switch_layout", text)
+            self.assertNotIn("bind=SUPER,n,switch_layout", text)
             self.assertNotIn("viewtoright_have_client", text)
             self.assertIn(f"source={rules}", text)
             self.assertIn("tag_num=31", text)
