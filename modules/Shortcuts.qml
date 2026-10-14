@@ -5,6 +5,7 @@ import Caelestia
 import qs.components.misc
 import qs.services
 import qs.modules.nexus
+import qs.modules.keybindings as KeybindingSheet
 
 Scope {
     id: root
@@ -133,6 +134,13 @@ Scope {
         }
 
         target: "drawers"
+    }
+
+    IpcHandler {
+        target: "keybindings"
+        function toggle(): void { KeybindingSheet.WindowFactory.toggle(); }
+        function close(): void { KeybindingSheet.WindowFactory.close(); }
+        function isOpen(): bool { return KeybindingSheet.WindowFactory.opened; }
     }
 
     IpcHandler {

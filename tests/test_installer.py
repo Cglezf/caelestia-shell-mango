@@ -29,6 +29,25 @@ class MangoSetupTest(unittest.TestCase):
             config_helper.configure(config, ROOT / "assets/mango-keybinds.conf", True, True)
             self.assertEqual(config.read_text(), first)
 
+    def test_sheet_window_rule_is_added_and_sourced_rules_are_not_duplicated(self):
+        with tempfile.TemporaryDirectory() as folder:
+            directory = Path(folder)
+            config = directory / "config.conf"
+            profile = directory / "sheet.conf"
+            rule = "window_rule=title:^Caelestia Keybindings$,is_floating:1"
+            profile.write_text("bind=SUPER,slash,spawn,qs ipc -c caelestia call keybindings toggle\n" + rule + "\n")
+            config.write_text("blur=0\n")
+            config_helper.configure(config, profile, True)
+            first = config.read_text()
+            self.assertEqual(first.count(rule), 1)
+            config_helper.configure(config, profile, True)
+            self.assertEqual(config.read_text(), first)
+            source = directory / "rules.conf"
+            source.write_text(rule + "\n")
+            config.write_text("source=rules.conf\n")
+            config_helper.configure(config, profile, True)
+            self.assertNotIn(rule, config.read_text())
+
     def test_conflict_leaves_config_untouched(self):
         with tempfile.TemporaryDirectory() as folder:
             config = Path(folder) / "config.conf"

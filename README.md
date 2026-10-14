@@ -83,6 +83,22 @@ The following features are available:
 - ✅ Wallpaper management
 - ✅ Color scheme switching
 
+### Keyboard shortcut sheet
+
+Press **Super + /** to toggle the shell's floating keyboard shortcut sheet.
+Search by key, application or action; filter by category. Escape closes the sheet
+and Ctrl+F focuses search. The sheet reads the active Mango config and its sources
+on each open or refresh, including custom bindings, release bindings, mouse
+shortcuts and key modes. Plain-conf and TOML configurations are supported.
+
+Both bundled shortcut profiles include the binding and a floating window rule.
+For a manually managed config, add:
+
+```ini
+bind=SUPER,slash,spawn,qs ipc -c caelestia call keybindings toggle
+window_rule=title:^Caelestia Keybindings$,is_floating:1
+```
+
 ### Current limits
 
 - Mango has one native special-tag overlay per output. It does not provide independent Hyprland-style named special workspaces; the adapter exposes the native overlay as `special:special`.
