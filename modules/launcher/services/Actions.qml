@@ -6,6 +6,7 @@ import Quickshell
 import Caelestia.Config
 import Caelestia.I18n
 import Caelestia.Services
+import qs.modules.nexus
 import qs.services
 import qs.utils
 
@@ -48,6 +49,12 @@ Searcher {
             } else if (command[0] === "setMode" && command.length > 1) {
                 list.screenState.launcher = false;
                 Colours.setMode(command[1]);
+            } else if (command[0] === "randomWallpaper" || (command.join(" ") === "caelestia wallpaper -r")) {
+                list.screenState.launcher = false;
+                Wallpapers.setRandom();
+            } else if (command[0] === "openSettings" || (command.join(" ") === "caelestia shell nexus open")) {
+                list.screenState.launcher = false;
+                WindowFactory.create();
             } else {
                 list.screenState.launcher = false;
                 if (!SessionManager.exec(command))

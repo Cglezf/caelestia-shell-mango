@@ -12,10 +12,8 @@ Searcher {
     id: root
 
     readonly property string currentNamePath: `${Paths.state}/wallpaper/path.txt`
-    readonly property list<string> smartArg: GlobalConfig.services.smartScheme ? [] : ["--no-smart"]
     readonly property string fallback: Quickshell.shellPath("assets/wallpaper.webp")
 
-    property bool cliAvailable: false
     property bool showPreview: false
     readonly property string current: showPreview ? previewPath : actualCurrent
     property string previewPath
@@ -38,14 +36,13 @@ Searcher {
 
     function setWallpaper(path: string): void {
         // Reapplying the same path can follow an image being edited in place.
-        if (!cliAvailable) {
+        if (Colours.scheme === "dynamic") {
             lastPalettePath = "";
             paletteRefresh.restart();
         }
         actualCurrent = path;
         currentWallpaper.setText(path);
-        if (cliAvailable)
-            Quickshell.execDetached(["caelestia", "wallpaper", "-f", path, ...smartArg]);
+
     }
 
     function preview(path: string): void {
@@ -70,9 +67,8 @@ Searcher {
     }
 
     // The state file can also change outside this shell (CLI or another instance).
-    // Debounce both sources and wait for the CLI availability probe to finish.
+    // Debounce updates from the launcher and the watched state file.
     onActualCurrentChanged: paletteRefresh.restart()
-    onCliAvailableChanged: paletteRefresh.restart()
 
     list: wallpapers.entries
 
@@ -97,7 +93,7 @@ Searcher {
 
         interval: 150
         onTriggered: {
-            if (!root.cliAvailable && Colours.scheme === "dynamic" && root.actualCurrent && root.actualCurrent !== root.lastPalettePath)
+            if (Colours.scheme === "dynamic" && root.actualCurrent && root.actualCurrent !== root.lastPalettePath)
                 Colours.generatePalette(root.actualCurrent);
         }
     }
@@ -116,12 +112,6 @@ Searcher {
         }
 
         target: "wallpaper"
-    }
-
-    Process {
-        command: ["sh", "-c", "command -v caelestia >/dev/null 2>&1"]
-        running: true
-        onExited: code => root.cliAvailable = code === 0
     }
 
     FileView {

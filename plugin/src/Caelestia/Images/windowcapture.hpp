@@ -1,6 +1,7 @@
 #pragma once
 
 #include <qimage.h>
+#include <qfuturewatcher.h>
 #include <qprocess.h>
 #include <qqmlintegration.h>
 #include <qquickpainteditem.h>
@@ -44,6 +45,8 @@ private:
     QSizeF m_constraintSize;
     QImage m_image;
     QProcess m_process;
+    QFutureWatcher<QImage> m_nativeCapture;
+    bool m_nativeUnavailable = false;
     QTimer m_refresh;
     QTimer m_timeout;
 };

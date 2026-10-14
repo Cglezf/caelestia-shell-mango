@@ -115,7 +115,7 @@ def named_scratchpad(name):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("workspace", "special-out", "group-toggle", "normalize", "pip", "screenshot", "clipboard", "clipboard-delete", "clipboard-latest", "emoji", "colour", "app", "scratchpad", "restart", "kill"))
+    parser.add_argument("action", choices=("workspace", "special-out", "group-toggle", "normalize", "pip", "screenshot", "clipboard", "clipboard-delete", "clipboard-latest", "emoji", "colour", "app", "scratchpad", "keyboard-light", "restart", "kill"))
     parser.add_argument("args", nargs="*")
     options = parser.parse_args()
     action, args = options.action, options.args
@@ -162,6 +162,14 @@ def main():
         result = subprocess.run(["hyprpicker", "--format", "hex"], capture_output=True, text=True)
         if result.returncode == 0 and result.stdout.strip():
             run(["wl-copy"], input=result.stdout.strip(), text=True)
+    elif action == "keyboard-light":
+        devices = sorted(Path("/sys/class/leds").glob("*::kbd_backlight"))
+        if not devices:
+            raise ValueError("No keyboard backlight is available")
+        device = devices[0]
+        current = int((device / "brightness").read_text())
+        maximum = int((device / "max_brightness").read_text())
+        run(["brightnessctl", "--device=" + device.name, "set", "0" if current else str(maximum)])
     elif action == "app":
         command = app_command(args[0])
         if not command or not shutil.which(command[0]):

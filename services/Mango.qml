@@ -1,10 +1,12 @@
 pragma Singleton
 
+import Caelestia
 import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.utils
 import "../utils/MangoModel.js" as Model
+import Caelestia.Config
 import Caelestia.Services
 import Quickshell.Wayland._ToplevelManagement
 
@@ -29,6 +31,7 @@ Singleton {
     // client_count, ... }], active_tags: [n], keyboardlayout, keymode, ... }] }
     property var monitorState: null
     property var clientState: []
+    property var initialClients: ({})
     property var outputsList: []
     property var monitorCache: ({})
     property int nextMonitorId: 0
@@ -74,7 +77,7 @@ Singleton {
     readonly property var options: ({
         "animations:enabled": nativeOptions.animations ?? 1,
         "decoration:rounding": nativeOptions.border_radius ?? 0,
-        "general:border_size": nativeOptions.border_size ?? 1
+        "general:border_size": nativeOptions.border_px ?? 1
     })
 
     Component {
@@ -113,7 +116,7 @@ Singleton {
             "decoration:blur:enabled": ["blur"],
             "general:gaps_in": ["gap_inner_horizontal", "gap_inner_vertical"],
             "general:gaps_out": ["gap_outer_horizontal", "gap_outer_vertical"],
-            "general:border_size": ["border_size"], "decoration:rounding": ["border_radius"],
+            "general:border_size": ["border_px"], "decoration:rounding": ["border_radius"],
             "general:allow_tearing": ["allow_tearing"]
         };
         const updated = Object.assign({}, nativeOptions);
@@ -148,6 +151,11 @@ Singleton {
                 if (data?.devices) root.deviceState = data.devices;
             }
         }
+    }
+
+    Connections {
+        target: OutputPower
+        function onFailed(message: string): void { Toaster.toast("Display power", message, "monitor"); }
     }
 
     signal configReloaded
@@ -197,6 +205,14 @@ Singleton {
         if (!data?.clients)
             return;
 
+        const initial = {};
+        for (const client of data.clients) {
+            const previous = initialClients[client.id];
+            initial[client.id] = previous?.pid === client.pid ? previous : {
+                pid: client.pid, title: client.title ?? "", appid: client.appid ?? ""
+            };
+        }
+        initialClients = initial;
         clientState = data.clients;
     }
 
@@ -220,9 +236,9 @@ Singleton {
             wayland: client.is_focused ? ToplevelManager.activeToplevel : null,
             lastIpcObject: {
                 "class": client.appid ?? "", address, title: client.title ?? "",
-                initialClass: client.appid ?? "", initialTitle: client.title ?? "",
+                initialClass: initialClients[client.id]?.appid ?? "", initialTitle: initialClients[client.id]?.title ?? "",
                 at: [client.x ?? 0, client.y ?? 0], size: [client.width ?? 0, client.height ?? 0],
-                mapped: !client.is_minimized, tags: [], fullscreen: client.is_fullscreen ? 2 : client.is_maximized ? 1 : 0,
+                mapped: !client.is_minimized, tags: Model.windowTags(client, GlobalConfig.bar.workspaces.tagRules), fullscreen: client.is_fullscreen ? 2 : client.is_maximized ? 1 : 0,
                 floating: !!client.is_floating, pinned: !!client.is_global, xwayland: !!client.is_xwayland,
                 visible: !!client.is_visible, pid: client.pid ?? -1, workspace
             }
@@ -307,6 +323,10 @@ Singleton {
         const args = client >= 0 ? [].concat(...rest.map(a => a.split(","))).filter(a => !a.startsWith("address:")) : rest;
 
         switch (command) {
+        case "dpms":
+            if (args[0] === "on" || args[0] === "off")
+                OutputPower.setEnabled(args[0] === "on");
+            return;
         case "workspace":
         case "view": {
             const to = args[0];

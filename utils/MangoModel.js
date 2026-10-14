@@ -24,3 +24,17 @@ function selectorId(request) {
 function specialVisible(clients, output) {
     return clients.some(c => onTag(c, output, 0) && c.is_visible);
 }
+
+// Workspace numbers and shell filtering tags are different concepts. Mango
+// does not expose Hyprland window tags; apply app-ID rules locally instead.
+function windowTags(client, rules) {
+    const appid = client.appid || "";
+    const tags = appid ? [appid] : [];
+    for (const pattern of Object.keys(rules || {})) {
+        if (pattern.endsWith("*") ? appid.startsWith(pattern.slice(0, -1)) : appid === pattern) {
+            const values = rules[pattern];
+            if (Array.isArray(values)) tags.push(...values.filter(tag => typeof tag === "string"));
+        }
+    }
+    return [...new Set(tags)];
+}

@@ -18,6 +18,7 @@ Singleton {
             "animations:enabled": 0,
             "decoration:shadow:enabled": 0,
             "decoration:blur:enabled": 0,
+            "blur_layer": 0,
             "general:gaps_in": 0,
             "general:gaps_out": 0,
             "general:border_size": 1,

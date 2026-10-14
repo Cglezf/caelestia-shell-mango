@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 import tomllib
 
-KEYS = {"animations", "layer_animations", "blur", "blur_layer", "shadows", "layer_shadows", "gap_inner_horizontal", "gap_inner_vertical", "gap_outer_horizontal", "gap_outer_vertical", "border_size", "border_radius", "allow_tearing"}
+KEYS = {"animations", "layer_animations", "blur", "blur_layer", "shadows", "layer_shadows", "gap_inner_horizontal", "gap_inner_vertical", "gap_outer_horizontal", "gap_outer_vertical", "border_px", "border_radius", "allow_tearing"}
 
 
 def read_config(path, seen=None):

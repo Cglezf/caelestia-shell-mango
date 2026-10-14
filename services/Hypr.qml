@@ -103,7 +103,10 @@ QtObject {
         if (!ipc?.class || !ipc.mapped)
             return true;
 
-        return ipc.tags?.some(tag => ignoredTags.includes(tag.replace(/\*$/, ""))) ?? false;
+        return (ipc.tags ?? []).some(tag => ignoredTags.some(pattern => {
+            if (pattern.endsWith("*")) return tag.startsWith(pattern.slice(0, -1));
+            return tag === pattern;
+        }));
     }
 
     function switchKeyboardLayout(index: int): void {

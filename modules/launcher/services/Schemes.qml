@@ -23,8 +23,7 @@ Searcher {
     }
 
     function reload(): void {
-        if (Wallpapers.cliAvailable)
-            getSchemes.running = true;
+        getSchemes.running = true;
     }
 
     list: schemes.instances
@@ -49,8 +48,8 @@ Searcher {
     Process {
         id: getSchemes
 
-        running: Wallpapers.cliAvailable
-        command: ["caelestia", "scheme", "list"]
+        running: true
+        command: ["python3", Quickshell.shellPath("assets/mango_schemes.py"), "list"]
         stdout: StdioCollector {
             onStreamFinished: {
                 if (!text.trim())
@@ -84,10 +83,7 @@ Searcher {
 
         function onClicked(list: AppList): void {
             list.screenState.launcher = false;
-            if (Wallpapers.cliAvailable)
-                Quickshell.execDetached(["caelestia", "scheme", "set", "-n", name, "-f", flavour]);
-            else
-                Colours.generatePalette(Wallpapers.actualCurrent || Wallpapers.fallback);
+            Colours.selectScheme(name, flavour);
         }
     }
 }

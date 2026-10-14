@@ -1,4 +1,6 @@
 #include "windowcapture.hpp"
+#include "nativecapture.hpp"
+#include <qtconcurrentrun.h>
 
 #include <qpainter.h>
 
@@ -7,6 +9,24 @@ using Qt::StringLiterals::operator""_s;
 
 WindowCapture::WindowCapture(QQuickItem* parent)
     : QQuickPaintedItem(parent) {
+    connect(&m_nativeCapture, &QFutureWatcher<QImage>::finished, this, [this] {
+        if (!m_active || m_captureIdentifier != m_identifier) {
+            if (m_active) m_refresh.start(0);
+            return;
+        }
+        const auto image = m_nativeCapture.result();
+        if (image.isNull()) {
+            m_nativeUnavailable = true;
+            capture(); // Older compositors retain the grim compatibility path.
+        } else {
+            const bool hadContent = hasContent();
+            m_image = image;
+            resizePreview();
+            update();
+            if (!hadContent) emit hasContentChanged();
+            m_refresh.start(100);
+        }
+    });
     m_refresh.setSingleShot(true);
     m_timeout.setSingleShot(true);
     m_timeout.setInterval(2000);
@@ -82,7 +102,8 @@ void WindowCapture::setConstraintSize(const QSizeF& size) {
 void WindowCapture::reset() {
     m_refresh.stop();
     m_timeout.stop();
-    m_captureIdentifier.clear();
+    m_nativeUnavailable = false;
+    if (!m_nativeCapture.isRunning()) m_captureIdentifier.clear();
     if (m_process.state() != QProcess::NotRunning)
         m_process.kill();
     const bool hadContent = hasContent();
@@ -100,7 +121,13 @@ void WindowCapture::capture() {
         m_refresh.start(50);
         return;
     }
+    if (m_nativeCapture.isRunning()) return;
     m_captureIdentifier = m_identifier;
+    if (!m_nativeUnavailable) {
+        const auto identifier = m_identifier;
+        m_nativeCapture.setFuture(QtConcurrent::run([identifier] { return captureNativeWindow(identifier); }));
+        return;
+    }
     // Pass an exact protocol identifier as an argument, never a shell command.
     m_process.start(u"grim"_s, {u"-T"_s, m_identifier, u"-t"_s, u"ppm"_s, u"-"_s});
     m_timeout.start();
