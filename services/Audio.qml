@@ -184,6 +184,10 @@ Singleton {
     }
 
     IpcHandler {
+        function increase(): void { root.incrementVolume(); }
+        function decrease(): void { root.decrementVolume(); }
+        function mute(): void { if (root.sink?.audio) root.sink.audio.muted = !root.sink.audio.muted; }
+        function muteMic(): void { if (root.source?.audio) root.source.audio.muted = !root.source.audio.muted; }
         function cycleOutput(): void {
             root.cycleNextAudioOutput();
         }

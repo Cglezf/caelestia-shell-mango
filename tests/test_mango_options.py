@@ -12,10 +12,10 @@ class ConfigOptionsTest(unittest.TestCase):
     def test_sources_cycles_and_overrides(self):
         with tempfile.TemporaryDirectory() as directory:
             folder = Path(directory)
-            (folder / "base.conf").write_text("blur=1\nborder_size=3\nsource=config.conf\n")
+            (folder / "base.conf").write_text("blur=1\nborder_px=3\nsource=config.conf\n")
             config = folder / "config.conf"
             config.write_text("source=base.conf\nblur=0 # local override\nsource_optional=missing.conf\nsecret=value\nborder_radius=bad\n")
-            self.assertEqual(options.read_config(config), {"blur": 0, "border_size": 3})
+            self.assertEqual(options.read_config(config), {"blur": 0, "border_px": 3})
 
     def test_toml_sources_and_numeric_options(self):
         with tempfile.TemporaryDirectory() as directory:

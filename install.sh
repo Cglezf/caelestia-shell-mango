@@ -54,7 +54,7 @@ ask() {
 check_dependencies() {
     local tool module
     missing=()
-    for tool in cmake ninja pkg-config c++ python3 qs mango mmsg; do
+    for tool in cmake ninja pkg-config c++ python3 qs mango mmsg wayland-scanner; do
         command -v "$tool" >/dev/null 2>&1 || missing+=("command: $tool")
     done
     if command -v python3 >/dev/null 2>&1; then
@@ -83,7 +83,7 @@ check_dependencies() {
     done
     if command -v grim >/dev/null 2>&1; then
         if ! grim -h 2>&1 | grep -q -- '-T'; then
-            printf '  Your grim lacks -T; upgrade it for live window previews.\n'
+            printf '  Your grim lacks -T; the native preview backend is available, but the compatibility fallback requires a newer grim.\n'
         fi
     fi
 }

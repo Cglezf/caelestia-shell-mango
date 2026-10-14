@@ -87,8 +87,8 @@ ColumnLayout {
         text: {
             const title = root.client?.lastIpcObject.initialTitle;
             if (title)
-                return Tr.tr("Initial title: %1").arg(title);
-            return Tr.tr("Initial title: unknown");
+                return Tr.tr("First observed title: %1").arg(title);
+            return Tr.tr("First observed title: unknown");
         }
         color: Colours.palette.m3tertiary
     }
@@ -98,8 +98,8 @@ ColumnLayout {
         text: {
             const cls = root.client?.lastIpcObject.initialClass;
             if (cls)
-                return Tr.tr("Initial class: %1").arg(cls);
-            return Tr.tr("Initial class: unknown");
+                return Tr.tr("First observed app ID: %1").arg(cls);
+            return Tr.tr("First observed app ID: unknown");
         }
     }
 

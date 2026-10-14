@@ -27,6 +27,7 @@ ShellRoot {
 
     GSFLoader {}
     ServiceLoader {}
+    Shortcuts {}
 
     Loader {
         active: !root.toolingMode
@@ -38,7 +39,6 @@ ShellRoot {
                 id: lock
             }
 
-            Shortcuts {}
             BatteryMonitor {}
             IdleMonitors {
                 lock: lock

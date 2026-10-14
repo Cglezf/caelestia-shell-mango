@@ -12,6 +12,7 @@ import qs.utils
 Singleton {
     id: root
 
+    property int paletteRevision: 0
     property bool showPreview
     property string scheme
     property string flavour
@@ -80,26 +81,75 @@ Singleton {
     }
 
     function setMode(mode: string): void {
-        if (Wallpapers.cliAvailable)
-            Quickshell.execDetached(["caelestia", "scheme", "set", "--notify", "-m", mode]);
-        else
-            generatePalette(Wallpapers.actualCurrent || Wallpapers.fallback, false, mode, variant);
+        if (scheme && !["dynamic", "default"].includes(scheme)) selectScheme(scheme, flavour, mode);
+        else generatePalette(Wallpapers.actualCurrent || Wallpapers.fallback, false, mode, variant);
     }
 
     function setVariant(value: string): void {
-        if (Wallpapers.cliAvailable)
-            Quickshell.execDetached(["caelestia", "scheme", "set", "-v", value]);
-        else
-            generatePalette(Wallpapers.actualCurrent || Wallpapers.fallback, false, currentLight ? "light" : "dark", value);
+        generatePalette(Wallpapers.actualCurrent || Wallpapers.fallback, false, currentLight ? "light" : "dark", value);
+    }
+
+    function selectScheme(name: string, flavour: string, mode = ""): void {
+        if (name === "dynamic") {
+            generatePalette(Wallpapers.actualCurrent || Wallpapers.fallback, false, mode || (currentLight ? "light" : "dark"), variant);
+            return;
+        }
+        currentGenerator.pending = null;
+        preset.pending = { args: [name, flavour, mode || (currentLight ? "light" : "dark")], revision: ++paletteRevision };
+        preset.startNext();
+    }
+
+    function applyTheme(data: string): void {
+        appTheme.pending = data;
+        appTheme.startNext();
+    }
+
+    Process {
+        id: preset
+        property var pending: null
+        property string output
+        property int jobRevision
+        function startNext(): void {
+            if (running || !pending) return;
+            command = ["python3", Quickshell.shellPath("assets/mango_schemes.py"), "get", ...pending.args];
+            jobRevision = pending.revision;
+            pending = null;
+            output = "";
+            running = true;
+        }
+        stdout: StdioCollector { onStreamFinished: preset.output = text }
+        stderr: StdioCollector { onStreamFinished: { if (text.trim()) console.warn(text.trim()); } }
+        onExited: code => {
+            if (code === 0 && output && !pending && jobRevision === root.paletteRevision) {
+                root.load(output, false);
+                schemeFile.setText(output);
+                root.applyTheme(output);
+            }
+            Qt.callLater(startNext);
+        }
+    }
+
+    Process {
+        id: appTheme
+        property string pending
+        function startNext(): void {
+            if (running || !pending) return;
+            command = ["python3", Quickshell.shellPath("assets/mango_theme.py"), "--palette-json", pending];
+            pending = "";
+            running = true;
+        }
+        stderr: StdioCollector { onStreamFinished: { if (text.trim()) console.warn("Application theme:", text.trim()); } }
+        onExited: Qt.callLater(startNext)
     }
 
     function generatePalette(image: string, isPreview = false, mode = "", value = ""): void {
         const generator = isPreview ? previewGenerator : currentGenerator;
+        if (!isPreview) preset.pending = null;
         generator.pending = {
             image,
             mode: mode || (currentLight ? "light" : "dark"),
             variant: value || variant,
-            useCli: isPreview && Wallpapers.cliAvailable
+            revision: isPreview ? 0 : ++paletteRevision
         };
         generator.startNext();
     }
@@ -195,7 +245,7 @@ Singleton {
             job = pending;
             pending = null;
             output = "";
-            command = job.useCli ? ["caelestia", "wallpaper", "-p", job.image, ...Wallpapers.smartArg] : ["python3", Quickshell.shellPath("assets/mango_palette.py"), job.image, "--mode", job.mode, "--variant", job.variant];
+            command = ["python3", Quickshell.shellPath("assets/mango_palette.py"), job.image, "--mode", job.mode, "--variant", job.variant];
             running = true;
         }
 
@@ -210,7 +260,7 @@ Singleton {
         }
         onExited: code => {
             // Newer requests replace queued work; never display stale previews.
-            if (code === 0 && output && !pending && (!isPreview || (Wallpapers.showPreview && Wallpapers.previewPath === job.image))) {
+            if (code === 0 && output && !pending && (isPreview || job.revision === root.paletteRevision) && (!isPreview || (Wallpapers.showPreview && Wallpapers.previewPath === job.image))) {
                 if (isPreview) {
                     root.load(output, true);
                     root.showPreview = true;
@@ -218,6 +268,7 @@ Singleton {
                     Wallpapers.lastPalettePath = job.image;
                     root.load(output, false);
                     schemeFile.setText(output);
+                    root.applyTheme(output);
                     Wallpapers.previewColourLock = false;
                 }
             } else if (!isPreview && !pending) {

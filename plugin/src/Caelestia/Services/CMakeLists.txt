@@ -21,7 +21,9 @@ qml_module(caelestia-services
         hyprdevices.cpp
         hyprextras.cpp
         keyboardstate.cpp
+        outputpower.cpp
     LIBRARIES
+        caelestia-protocols
         PkgConfig::WaylandClient
         PkgConfig::XkbCommon
         Qt::Gui

@@ -40,7 +40,7 @@ Every contribution helps keep this project maintained and supports future improv
 - **Window Management**: Workspace, monitor, and client state comes from persistent `mmsg watch` streams. Mango objects replace Hyprland-specific QML types.
 - **Input Masking**: Carefully tuned Region-based input masks to maintain click-through transparency on the desktop while keeping panels and bars interactive
 - **Blur Control**: Caelestia translates transparency changes into a managed Mango drawer blur rule. Changed rules recreate the native drawer surface while keeping panel state and typing focus.
-- **Feature Adaptation**: Direct `gpu-screen-recorder` integration with MangoWC monitor output, plus native window previews through `grim -T`.
+- **Feature Adaptation**: Direct `gpu-screen-recorder` integration with MangoWC monitor output, plus native Wayland window previews with a `grim -T` compatibility fallback.
 
 ### Recent fixes
 
@@ -54,7 +54,7 @@ Every contribution helps keep this project maintained and supports future improv
 - File-picker MIME and special-folder icons use checked theme fallbacks and bundled file/folder images when the theme lacks them.
 - A missing `~/.face` keeps the dashboard and lock screen's person icon visible without repeated image warnings.
 - First launch saves the built-in colour palette when `scheme.json` is missing. The launcher creates its database directory and falls back to memory if persistent storage cannot be opened.
-- Native window previews use Mango's `foreign_toplevel_id` and `grim -T`, refresh while visible, and stop when closed.
+- Native window previews use Mango's `foreign_toplevel_id` and the standard Wayland image-capture protocols, refresh at up to ten frames per second while visible, and stop when closed. Older compositors fall back to `grim -T`.
 - Each output has stable monitor objects and unique workspace IDs. Hotplug creates screen state synchronously and tolerates disappearing screens; cross-output workspace and window moves use native Mango commands.
 - Pin/unpin maps to Mango global windows. The native special-tag overlay is exposed in the workspace UI and window move controls.
 - Keyboard layouts come from the Wayland keymap; layout selection uses Mango's one-based switch command. Caps Lock and Num Lock use keyboard modifiers and Linux LED state.
@@ -82,6 +82,22 @@ The following features are available:
 - ✅ System tray
 - ✅ Wallpaper management
 - ✅ Color scheme switching
+
+### Keyboard shortcut sheet
+
+Press **Super + /** to toggle the shell's floating keyboard shortcut sheet.
+Search by key, application or action; filter by category. Escape closes the sheet
+and Ctrl+F focuses search. The sheet reads the active Mango config and its sources
+on each open or refresh, including custom bindings, release bindings, mouse
+shortcuts and key modes. Plain-conf and TOML configurations are supported.
+
+Both bundled shortcut profiles include the binding and a floating window rule.
+For a manually managed config, add:
+
+```ini
+bind=SUPER,slash,spawn,qs ipc -c caelestia call keybindings toggle
+window_rule=title:^Caelestia Keybindings$,is_floating:1
+```
 
 ### Current limits
 
@@ -158,7 +174,7 @@ the installation step still copies updated QML and assets.
 ### Compatibility requirements
 
 Live previews—the thumbnail shown when hovering over the bar's window title, also used by window info—
-work on the tested Mango setup. They require Mango client `foreign_toplevel_id` support and `grim -T`.
+work on the tested Mango setup. They require Mango client `foreign_toplevel_id` support and the standard image-capture protocols. `grim -T` is used only by the compatibility fallback.
 Older versions keep window titles and metadata available; upgrade those dependencies for live capture.
 This is a version requirement, rather than an unfinished port feature.
 
@@ -166,8 +182,8 @@ This is a version requirement, rather than an unfinished port feature.
 
 Dependencies:
 
--   [`caelestia-cli`](https://github.com/caelestia-dots/cli) (optional but recommended)
--   [`matugen`](https://github.com/InioX/matugen) (for dynamic colours without caelestia-cli)
+-   [`caelestia-cli`](https://github.com/caelestia-dots/cli) (optional; used by the emoji picker and custom CLI commands)
+-   [`matugen`](https://github.com/InioX/matugen) (for native dynamic colours)
 -   [`quickshell-git`](https://git.outfoxxed.me/quickshell/quickshell) - **must be the git version**, not the latest tagged version
 -   `mangowc` - The MangoWC compositor with `mmsg` IPC support
 -   `python` (Python 3.11 or newer, for Mango config helpers)
@@ -194,7 +210,7 @@ Dependencies:
 -   [`swappy`](https://github.com/jtheoof/swappy)
 -   [`gpu-screen-recorder`](https://git.dec05eba.com/gpu-screen-recorder/) (for screen recording)
 -   [`slurp`](https://github.com/emersion/slurp) (for region selection)
--   [`grim`](https://gitlab.freedesktop.org/emersion/grim) with `-T` support (for live window previews; check `grim -h`)
+-   [`grim`](https://gitlab.freedesktop.org/emersion/grim) (for screenshots; `-T` enables the preview compatibility fallback)
 -   [`fish`](https://github.com/fish-shell/fish-shell)
 -   [`bash`](https://www.gnu.org/software/bash)
 
@@ -1277,9 +1293,9 @@ Nope! This fork is specifically adapted for MangoWC. If you want to use Hyprland
 
 ### Window previews don't show live thumbnails!
 
-The bar popout and window-info panel capture the selected window through Mango's standard Wayland capture protocols using `grim -T`. Frames refresh at up to five per second while the preview is visible; capture stops when it closes. This captures window content directly, including content obscured by other windows.
+The bar popout and window-info panel capture the selected window directly through Mango's standard Wayland capture protocols. Frames refresh at up to ten per second while visible; capture stops when it closes. `grim -T` remains a compatibility fallback at up to five frames per second. This captures window content directly, including content obscured by other windows.
 
-Check that `grim -h` lists `-T`, and that `mmsg get all-clients` includes `foreign_toplevel_id` for clients. Rebuild, install, and restart the shell after updating: the previews use a compiled `Caelestia.Images` component. If capture is unavailable, window titles and metadata still work. Older Mango or grim versions may need an upgrade.
+Check that `mmsg get all-clients` includes `foreign_toplevel_id`. For the compatibility fallback, also check that `grim -h` lists `-T` for clients. Rebuild, install, and restart the shell after updating: the previews use a compiled `Caelestia.Images` component. If capture is unavailable, window titles and metadata still work. Older Mango or grim versions may need an upgrade.
 
 ### Notifications say a server is already registered
 
@@ -1366,7 +1382,32 @@ Wallpaper changes and previews then generate Material colours directly. Use `>va
 Material variant and the dashboard's light/dark control to change mode. The helper runs Matugen with
 `--dry-run`, so it does not execute your Matugen templates, hooks, or wallpaper commands.
 Static preset collections and the CLI's external application theming remain optional CLI features.
-The fallback updates the shell palette; it does not recolour other applications or terminal palettes.
+The native backend also provides bundled named schemes and optional user palettes in
+`~/.config/caelestia/schemes/*.json` (the same `name`, `flavour`, `mode`, `colours`
+format as `scheme.json`). It generates GTK, Alacritty, Kitty, foot, fuzzel and btop
+themes in `~/.config/caelestia/themes` and adds includes to existing app configs (or creates defaults for installed apps).
+Original configs are backed up once with `.before-caelestia-theme`; managed
+symlink configs are preserved. Generated GTK colour definitions are imported by
+GTK 3 and GTK 4. Local app colour overrides retain precedence. Apps may require
+reopening to load a changed palette. This does not modify browser or editor themes.
+
+The launcher Settings and Random wallpaper actions use native shell functions.
+Display idle off/on uses Wayland output power management, without `hyprctl` or an
+extra power-control utility. Recorder state is tracked even with drawers closed;
+stop/pause signals only the recorder started by this shell, including after reload.
+
+Mango has no Hyprland window-tag API. The bar supports app IDs (including trailing
+`*` prefix matches) in `bar.workspaces.ignoredTags`. To assign filtering tags,
+configure `bar.workspaces.tagRules`, for example:
+
+```json
+{"bar": {"workspaces": {"tagRules": {"steam_app_*": ["hide_in_bar"]}}}}
+```
+
+Window details show first-observed metadata: windows already open when the shell
+starts cannot provide their original creation-time title. Named special workspaces
+remain one native special overlay per output; named scratchpads contain individual
+apps. Alpha-threshold blur remains conditional on compositor protocol/features.
 
 ### My wallpapers aren't showing up in the launcher!
 

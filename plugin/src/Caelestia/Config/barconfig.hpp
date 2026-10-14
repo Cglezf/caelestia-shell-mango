@@ -56,6 +56,7 @@ class BarWorkspaces : public settings::ObjectNode {
             ICON_RULE_EXACT("todo", "checklist"),
             ICON_RULE_EXACT("sysmon", "monitor_heart"),
         }))
+    CONFIG_GLOBAL_PROPERTY(QVariantMap, tagRules, {})
     CONFIG_GLOBAL_PROPERTY(QStringList, ignoredTags,
         DEFAULT_ARG({
             u"hide_in_bar"_s,

@@ -15,3 +15,6 @@ assert(!model.onTag({monitor:'DP-1', tags:[1,3]}, 'eDP-1', 3));
 assert(model.specialVisible([{monitor:'DP-1', tags:[0], is_visible:true}], 'DP-1'));
 assert(!model.specialVisible([{monitor:'DP-1', tags:[0], is_visible:false}], 'DP-1'));
 console.log('Monitor/tag identity, multitag membership, selectors, and special visibility: passed');
+
+assert.deepEqual(Array.from(model.windowTags({appid:'steam_app_123'}, {'steam_app_*':['hide_in_bar']})), ['steam_app_123', 'hide_in_bar']);
+assert.deepEqual(Array.from(model.windowTags({appid:'foot'}, {'steam_app_*':['hide_in_bar']})), ['foot']);

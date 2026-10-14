@@ -141,7 +141,7 @@ ColumnLayout {
         Button {
             color: Colours.palette.m3secondaryContainer
             onColor: Colours.palette.m3onSecondaryContainer
-            text: root.client?.workspace.id < 0 ? Tr.tr("Return from special") : Tr.tr("Move to special")
+            text: root.client?.workspace.id < 0 ? Tr.tr("Return from special overlay") : Tr.tr("Move to special overlay")
             onClicked: Hypr.dispatch(`tag_special_tag address:${root.client?.address}`)
         }
 

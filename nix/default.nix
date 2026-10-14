@@ -24,6 +24,7 @@
   wtype,
   hyprpicker,
   wayland,
+  wayland-scanner,
   libxkbcommon,
   material-symbols,
   rubik,
@@ -114,7 +115,7 @@
       fileset = lib.fileset.union ./../CMakeLists.txt ./../plugin;
     };
 
-    nativeBuildInputs = [cmake ninja pkg-config];
+    nativeBuildInputs = [cmake ninja pkg-config wayland-scanner];
     buildInputs = [qt6.qtbase qt6.qtdeclarative qt6.qtshadertools wayland libxkbcommon libqalculate pipewire aubio libcava fftw lm_sensors];
 
     dontWrapQtApps = true;

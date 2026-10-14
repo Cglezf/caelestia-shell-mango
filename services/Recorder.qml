@@ -1,5 +1,6 @@
 pragma Singleton
 
+import Caelestia
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -9,163 +10,95 @@ import qs.utils
 Singleton {
     id: root
 
-    readonly property alias running: props.running
-    readonly property alias paused: props.paused
-    readonly property alias elapsed: props.elapsed
+    property bool running: false
+    property bool paused: false
+    property real elapsed: 0
     property int refCount: 0
-    property bool needsStart
     property list<string> startArgs
-    property bool needsStop
-    property bool needsPause
+    property var queue: []
+    property bool selecting: false
 
     function getNewRecordingPath(): string {
-        const now = new Date();
-        const pad = n => n.toString().padStart(2, "0");
-        const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
-        return `${Paths.recsdir}/recording_${timestamp}.mp4`;
+        return `${Paths.recsdir}/recording_${Date.now()}.mp4`;
+    }
+
+    function request(args: var): void {
+        queue = [...queue, args];
+        runNext();
+    }
+
+    function runNext(): void {
+        if (control.running || !queue.length) return;
+        control.command = ["python3", Quickshell.shellPath("assets/mango_recorder.py"), ...queue[0]];
+        queue = queue.slice(1);
+        control.running = true;
     }
 
     function startRecording(regionGeometry = ""): void {
-        const output = Mango.focusedOutput || "screen";
-        const isRegion = root.startArgs.some(a => a.includes("r"));
-        const withSound = root.startArgs.some(a => a.includes("s"));
-        const outPath = getNewRecordingPath();
-
-        Quickshell.execDetached(["mkdir", "-p", Paths.recsdir]);
-
-        const cmd = ["gpu-screen-recorder"];
-        if (isRegion && regionGeometry) {
-            cmd.push("-w", "region", "-region", regionGeometry);
-        } else {
-            cmd.push("-w", output);
-        }
-        cmd.push("-f", "60");
-        if (withSound) {
-            cmd.push("-a", "defaultoutput");
-        }
-        cmd.push("-o", outPath);
-
-        Quickshell.execDetached(cmd);
-        props.running = true;
-        props.paused = false;
-        props.elapsed = 0;
-        root.needsStart = false;
+        const args = ["start", "--output", Mango.focusedOutput || "screen", "--destination", getNewRecordingPath()];
+        if (startArgs.includes("-s")) args.push("--sound");
+        if (regionGeometry) args.push("--region", regionGeometry);
+        request(args);
     }
 
     function start(extraArgs = []): void {
-        needsStart = true;
+        if (running || selecting || control.running) return;
         startArgs = extraArgs;
-        checkProc.running = true;
+        if (extraArgs.includes("-r")) {
+            selecting = true;
+            slurpProc.running = true;
+        } else startRecording();
     }
 
-    function stop(): void {
-        needsStop = true;
-        checkProc.running = true;
-    }
-
-    function togglePause(): void {
-        needsPause = true;
-        checkProc.running = true;
-    }
+    function stop(): void { request(["stop"]); }
+    function togglePause(): void { if (running) request(["pause"]); }
 
     IpcHandler {
-        function toggle(mode: string): void {
-            if (root.running)
-                root.stop();
-            else
-                root.start(mode === "region" ? ["-r"] : mode === "sound" ? ["-s"] : []);
-        }
-
-        function stop(): void {
-            root.stop();
-        }
-
         target: "recorder"
-    }
-
-    PersistentProperties {
-        id: props
-
-        property bool running: false
-        property bool paused: false
-        property real elapsed: 0 // Might get too large for int
-
-        reloadableId: "recorder"
+        function toggle(mode: string): void {
+            if (root.running) root.stop();
+            else root.start(mode === "region" ? ["-r"] : mode === "sound" ? ["-s"] : []);
+        }
+        function stop(): void { root.stop(); }
     }
 
     Process {
         id: slurpProc
-
         command: ["slurp", "-f", "%wx%h+%x+%y"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                const geom = text.trim();
-                if (geom.length > 0) {
-                    root.startRecording(geom);
-                }
-            }
-        }
-        onExited: code => { // qmllint disable signal-handler-parameters
-            if (code !== 0) {
-                root.needsStart = false;
-            }
+        property string geometry
+        stdout: StdioCollector { onStreamFinished: slurpProc.geometry = text.trim() }
+        onExited: code => {
+            root.selecting = false;
+            if (code === 0 && geometry) root.startRecording(geometry);
+            geometry = "";
         }
     }
 
     Process {
-        id: checkProc
-
-        running: true
-        command: ["pidof", "gpu-screen-recorder"]
-        onExited: code => { // qmllint disable signal-handler-parameters
-            const running = code === 0;
-
-            if (running && root.needsStop) {
-                Quickshell.execDetached(["pkill", "-SIGINT", "-f", "gpu-screen-recorder"]);
-                props.running = false;
-                props.paused = false;
-            } else if (running && root.needsPause) {
-                Quickshell.execDetached(["pkill", "-SIGUSR2", "-f", "gpu-screen-recorder"]);
-                props.paused = !props.paused;
-            } else if (!running && root.needsStart) {
-                const isRegion = root.startArgs.some(a => a.includes("r"));
-                if (isRegion) {
-                    slurpProc.running = true;
-                } else {
-                    root.startRecording();
-                }
-            } else if (running !== props.running) {
-                // The recording was started/stopped outside the shell (e.g. via
-                // keybind), or process exited
-                props.running = running;
-                if (!running) {
-                    props.paused = false;
-                    props.elapsed = 0;
-                }
+        id: control
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const state = JSON.parse(text);
+                    root.running = state.running;
+                    root.paused = state.paused;
+                    root.elapsed = state.elapsed;
+                } catch (error) { console.warn("Recorder state:", error); }
             }
-
-            root.needsStart = false;
-            root.needsStop = false;
-            root.needsPause = false;
         }
+        stderr: StdioCollector {
+            onStreamFinished: {
+                if (text.trim()) Toaster.toast("Recording", text.trim(), "videocam_off");
+            }
+        }
+        onExited: Qt.callLater(root.runNext)
     }
 
-    // Only poll while something is showing the state, i.e. the utilities drawer is open
     Timer {
         interval: 1000
-        running: root.refCount > 0
+        running: true
         repeat: true
         triggeredOnStart: true
-
-        onTriggered: checkProc.running = true
-    }
-
-    Connections {
-        function onSecondsChanged(): void {
-            props.elapsed++;
-        }
-
-        enabled: props.running && !props.paused
-        target: Time // qmllint disable incompatible-type
+        onTriggered: { if (!control.running && !root.queue.length) root.request(["status"]); }
     }
 }

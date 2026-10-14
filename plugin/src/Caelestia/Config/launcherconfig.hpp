@@ -82,7 +82,7 @@ class LauncherConfig : public settings::ObjectNode {
                 { u"name"_s, markCtx(u"Random"_s, u"launcher action"_s) },
                 { u"icon"_s, u"casino"_s },
                 { u"description"_s, mark(u"Switch to a random wallpaper"_s) },
-                { u"command"_s, QStringList{ u"caelestia"_s, u"wallpaper"_s, u"-r"_s } },
+                { u"command"_s, QStringList{ u"randomWallpaper"_s } },
             }),
             vmap({
                 { u"name"_s, markCtx(u"Light"_s, u"launcher action"_s) },
@@ -133,7 +133,7 @@ class LauncherConfig : public settings::ObjectNode {
                 { u"name"_s, markCtx(u"Settings"_s, u"launcher action"_s) },
                 { u"icon"_s, u"settings"_s },
                 { u"description"_s, mark(u"Configure the shell"_s) },
-                { u"command"_s, QStringList{ u"caelestia"_s, u"shell"_s, u"nexus"_s, u"open"_s } },
+                { u"command"_s, QStringList{ u"openSettings"_s } },
             }),
         }))
 };
