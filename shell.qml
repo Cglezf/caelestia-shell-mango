@@ -40,6 +40,7 @@ ShellRoot {
             }
 
             BatteryMonitor {}
+            LockKeyOsd {}
             IdleMonitors {
                 lock: lock
             }

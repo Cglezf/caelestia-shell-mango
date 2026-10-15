@@ -52,6 +52,10 @@ CustomMouseArea {
         return y > height - Math.max(Config.border.minThickness, Config.border.thickness + panelHeight) - (isCorner ? Config.border.rounding : 0) && withinPanelWidth(panel, x, y);
     }
 
+    function inTopRightCorner(x: real, y: real): bool {
+        return x >= width - Config.session.hoverCornerSize && y <= Config.session.hoverCornerSize;
+    }
+
     function inPanelBounds(panel: Item, x: real, y: real): bool {
         if (!panel || !panel.visible) return false;
         const point = panel.mapFromItem(root, x, y);
@@ -241,6 +245,11 @@ CustomMouseArea {
             else if (dragY > Config.launcher.dragThreshold)
                 screenState.launcher = false;
         }
+
+        // Show session on hover in the top-right corner; it closes like before
+        // (click outside, Escape or an action)
+        if (Config.session.showOnHover && !screenState.session && inTopRightCorner(x, y))
+            screenState.session = true;
 
         // Show dashboard on hover
         const showDashboard = Config.dashboard.showOnHover && inTopPanel(panels.dashboard, x, y);

@@ -32,6 +32,10 @@ class SessionConfig : public settings::ObjectNode {
     CONFIG_NODE(SessionConfig, settings::ObjectNode)
 
     CONFIG_PROPERTY(bool, enabled, true)
+    // Open the session panel by hovering the top-right corner (a square of
+    // hoverCornerSize pixels), next to where the panel appears.
+    CONFIG_PROPERTY(bool, showOnHover, false)
+    CONFIG_PROPERTY(int, hoverCornerSize, 12)
     CONFIG_PROPERTY(int, dragThreshold, 30)
     CONFIG_PROPERTY(bool, vimKeybinds, false)
     CONFIG_SUBOBJECT(SessionIcons, icons)
