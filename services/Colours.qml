@@ -100,6 +100,8 @@ Singleton {
     }
 
     function applyTheme(data: string): void {
+        if (!GlobalConfig.appearance.appThemes)
+            return;
         appTheme.pending = data;
         appTheme.startNext();
     }

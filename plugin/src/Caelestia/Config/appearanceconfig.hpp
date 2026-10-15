@@ -274,6 +274,9 @@ class AppearanceConfig : public settings::ObjectNode {
     CONFIG_NODE(AppearanceConfig, settings::ObjectNode)
 
     CONFIG_PROPERTY(qreal, deformScale, 1)
+    // Write the scheme into other apps' configs (kitty, alacritty, btop, fuzzel, GTK) via
+    // assets/mango_theme.py. Off when those configs are managed elsewhere (a dotfiles repo).
+    CONFIG_PROPERTY(bool, appThemes, true)
     CONFIG_SUBOBJECT(AppearanceRounding, rounding)
     CONFIG_SUBOBJECT(AppearanceSpacing, spacing)
     CONFIG_SUBOBJECT(AppearancePadding, padding)
