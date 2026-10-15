@@ -81,7 +81,9 @@ def apply_theme(palette, config):
         raise ValueError("Invalid theme colour")
     bg, fg, accent = c["surface"], c["onSurface"], c["primary"]
     defaults = [bg, c["error"], c["tertiary"], c["secondary"], accent, c["primaryContainer"], c["tertiaryContainer"], fg]
-    ansi = [c.get(f"term{i}", defaults[i % 8]) for i in range(16)]
+    # Bright black is the colour of comments and shell suggestions: never the surface itself.
+    defaults += [c.get("outline", fg)] + defaults[1:]
+    ansi = [c.get(f"term{i}", defaults[i]) for i in range(16)]
     directory = config / "caelestia/themes"
     write(directory / "gtk.css", "\n".join(f"@define-color {name} #{value};" for name, value in {
         "accent_color": accent, "accent_bg_color": accent, "accent_fg_color": c["onPrimary"],

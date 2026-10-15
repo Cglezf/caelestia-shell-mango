@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
+import time
 import tomllib
 import unittest
 from unittest.mock import patch
@@ -69,6 +70,20 @@ class ThemeTest(unittest.TestCase):
                 for flavour, modes in flavours.items():
                     for mode in modes:
                         theme.apply_theme(schemes.select(name, flavour, mode), Path(folder))
+
+    def test_bright_black_is_not_the_background(self):
+        # A dynamic scheme carries no term colours: bright black (zsh suggestions, comments) used to equal the surface.
+        colours = {'surface': '0f1512', 'onSurface': 'dee4e0', 'primary': '87d6bc', 'onPrimary': '00382b', 'error': 'ffb4ab',
+                   'tertiary': 'a8cbe2', 'secondary': 'b2ccc1', 'primaryContainer': '005140', 'onPrimaryContainer': 'a2f2d7',
+                   'tertiaryContainer': '284b5d', 'surfaceContainer': '1b211e', 'outline': '89938e'}
+        with tempfile.TemporaryDirectory() as folder:
+            theme.apply_theme({'colours': colours}, Path(folder))
+            kitty = (Path(folder) / 'caelestia/themes/kitty.conf').read_text().splitlines()
+            self.assertIn('color8 #89938e', kitty)
+            del colours['outline']
+            theme.apply_theme({'colours': colours}, Path(folder))
+            kitty = (Path(folder) / 'caelestia/themes/kitty.conf').read_text().splitlines()
+            self.assertNotIn('color8 #0f1512', kitty)
 
     def test_user_palette_and_mode_fallback(self):
         with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {'XDG_CONFIG_HOME': folder}):
