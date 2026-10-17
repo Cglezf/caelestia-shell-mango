@@ -2,9 +2,9 @@
 
 <div align=center>
 
-![GitHub last commit](https://img.shields.io/github/last-commit/caelestia-dots/shell?style=for-the-badge&labelColor=101418&color=9ccbfb)
-![GitHub Repo stars](https://img.shields.io/github/stars/caelestia-dots/shell?style=for-the-badge&labelColor=101418&color=b9c8da)
-![GitHub repo size](https://img.shields.io/github/repo-size/caelestia-dots/shell?style=for-the-badge&labelColor=101418&color=d3bfe6)
+![GitHub last commit](https://img.shields.io/github/last-commit/evoziosk/caelestia-shell-mango?style=for-the-badge&labelColor=101418&color=9ccbfb)
+![GitHub Repo stars](https://img.shields.io/github/stars/evoziosk/caelestia-shell-mango?style=for-the-badge&labelColor=101418&color=b9c8da)
+![GitHub repo size](https://img.shields.io/github/repo-size/evoziosk/caelestia-shell-mango?style=for-the-badge&labelColor=101418&color=d3bfe6)
 [![Ko-Fi donate](https://img.shields.io/badge/donate-kofi?style=for-the-badge&logo=ko-fi&logoColor=ffffff&label=ko-fi&labelColor=101418&color=f16061&link=https%3A%2F%2Fko-fi.com%2Fsoramane)](https://ko-fi.com/soramane)
 [![Discord invite](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdiscordapp.com%2Fapi%2Finvites%2FBGDCFCmMBk%3Fwith_counts%3Dtrue&query=approximate_member_count&style=for-the-badge&logo=discord&logoColor=ffffff&label=discord&labelColor=101418&color=96f1f1&link=https%3A%2F%2Fdiscord.gg%2FBGDCFCmMBk)][discord]
 
@@ -49,8 +49,7 @@ Every contribution helps keep this project maintained and supports future improv
 - Special-tag actions retain their target monitor, and notification fullscreen checks use visible windows on the focused output.
 - Workspace labels retain all digits on secondary monitors (for example, tag 10 displays as 10).
 - Native reload hooks refresh shell options and reapply game mode; shell-initiated reloads wait for successful IPC completion.
-
-- Workspace clicks use `mmsg dispatch view,<tag>` so repeated switches work without a keyboard shortcut resetting combination state.
+- Workspace clicks use native `viewcrossmon,<tag>,<output>` (or `view,<tag>` for unresolved tags) so repeated switches work without a keyboard shortcut resetting combination state.
 - Workspace indicators respect the compositor's tag count; window occupancy uses Mango client data.
 - Fullscreen notification checks accept Mango monitor objects, and drawer clicks use the current screen state.
 - The launcher acquires keyboard focus on open and refocuses search on subsequent opens. Focus requests wait for the Wayland window to be active and skip an already focused field. Mango keybinding examples call Quickshell directly.
@@ -72,14 +71,14 @@ Every contribution helps keep this project maintained and supports future improv
 - Dynamic colours also follow changes to the saved wallpaper path without the CLI, including changes made outside the shell. Reapplying the same wallpaper regenerates its palette.
 - Nix packaging and Home Manager now use Mango and the required capture/keyboard dependencies instead of Hyprland.
 
-### What Still Works?
+### Features
 
-The following features are available:
+The shell provides the following features on MangoWC. See [compatibility and known limits](#compatibility-and-known-limits) for remaining differences and requirements:
 
-- ✅ All panels (bar, dashboard, utilities, OSD, sidebar)
+- ✅ Panels: bar, dashboard, utilities, OSD, sidebar, and session controls
 - ✅ Screen recording (fullscreen & region capture via `gpu-screen-recorder` + `slurp`)
 - ✅ Hover detection and auto-hide behaviors
-- ✅ Workspaces and window tracking
+- ✅ Multi-monitor tags, window tracking, native previews, and window actions
 - ✅ Media controls (MPRIS)
 - ✅ Network, battery, brightness, audio controls
 - ✅ Launcher with app search
@@ -87,7 +86,9 @@ The following features are available:
 - ✅ Lock screen
 - ✅ System tray
 - ✅ Wallpaper management
-- ✅ Color scheme switching
+- ✅ Built-in colour schemes, Matugen wallpaper palettes, and application themes
+- ✅ Searchable keyboard shortcut sheet and Nexus settings
+- ✅ Game mode, keyboard indicators, and keyboard-change toasts
 
 ### Keyboard shortcut sheet
 
@@ -136,9 +137,15 @@ configuration/state directories. It checks multi-monitor visibility, special-tag
 command ordering, and game-mode restoration after both reload paths without
 changing the desktop. Hardware-specific behavior still requires live testing.
 
-### Current limits
+### Compatibility and known limits
+
+The core shell is ported, but it is not identical to upstream in every behavior:
 
 - Mango has one native special-tag overlay per output. It does not provide independent Hyprland-style named special workspaces; the adapter exposes the native overlay as `special:special`.
+- Workspace groups are bounded by Mango's maximum of 31 tags. Group locking, extra Super+Z/X mouse aliases, and lock-surface restoration shortcuts remain unmapped; see [the full profile](#full-caelestia-style-keybindings).
+- Window details retain first-observed titles/app IDs, not necessarily the original creation-time metadata for windows open before the shell starts. Bar filtering tags are assigned locally through `tagRules` rather than compositor window tags.
+- Native window previews need `foreign_toplevel_id` plus supported Wayland image-capture protocols. The fallback needs `grim -T` and still requires a client identifier; titles and metadata remain available when capture is unsupported.
+- **Known recorder-menu bug:** “Record region with sound” currently passes a combined `-sr` flag that the recorder does not recognize, so it starts fullscreen recording without sound. Region-only and fullscreen-with-sound options use separate supported flags.
 - Alpha-threshold blur rules depend on the installed Mango version; older builds use their native transparency mask. The remaining Qt text-input warning is documented below.
 - Notifications require Caelestia to own `org.freedesktop.Notifications`; another running notification server can prevent registration.
 
@@ -192,7 +199,7 @@ Builds run as your normal user; sudo is used for system packages and the final i
 
 After installation, optional prompts add shortcuts, autostart, and blur integration. Config changes
 are backed up. Existing shortcuts are preserved; conflicting keys are reported without changing the
-config. TOML and symlink-managed Mango configs require declarative/manual setup. The installer does
+config unless you choose the full-profile conflict-replacement option. TOML and symlink-managed Mango configs require declarative/manual setup. The installer does
 not stop another shell or launch a second instance: close the old Caelestia instance and run `qs -c caelestia`.
 
 Useful options:
@@ -505,13 +512,11 @@ sudo cmake --install build
 Reconfiguration keeps your existing installation settings and refreshes build metadata.
 If Git reports local changes or divergent history, resolve those before updating.
 Stop the running Caelestia instance with Ctrl+C in its terminal, then run `qs -c caelestia` again.
-Restart after updates to compiled plugins as well as QML files.
+Restart after updates to compiled plugins as well as QML files. If you use a user copy at `~/.config/quickshell/caelestia`, update that copy too or explicitly launch the system path; it takes precedence over system-wide installs. Re-run shortcut setup when an update adds integration hooks such as the Mango reload hook.
 
 ## Configuring
 
-All configuration options belong in `~/.config/caelestia/shell.json`. This file is _not_ created by
-default; you must create it manually. Options that you omit from the config file will use their default
-values.
+All configuration options belong in `~/.config/caelestia/shell.json`. This file can be created manually or saved by changes made in Nexus settings. Options that you omit use their default values.
 
 ### Per-monitor configuration
 
@@ -545,7 +550,7 @@ For example, to automatically hide the bar on the monitor named `DP-1`:
 >
 > - `appearance`: `anim.*`, `transparency.*`
 > - `bar.tray`: `hiddenIcons`, `iconSubs`
-> - `bar.workspaces`: `ignoredTags`, `specialWorkspaceIcons`, `windowIcons`, `workspaceIcons`
+> - `bar.workspaces`: `ignoredTags`, `tagRules`, `specialWorkspaceIcons`, `windowIcons`, `workspaceIcons`
 > - `dashboard`: `mediaUpdateInterval`, `resourceUpdateInterval`
 > - `general`: `apps.*`, `battery.*`, `idle.*`, `logo`
 > - `launcher`: `actionPrefix`, `actions`, `enableDangerousActions`, `favouriteApps`, `hiddenApps`, `specialPrefix`, `useFuzzy.*`, `vimKeybinds`
@@ -560,13 +565,10 @@ For example, to automatically hide the bar on the monitor named `DP-1`:
 
 ### Example configuration
 
-> [!WARNING]
-> The example configuration includes **ALL** configuration options in `shell.json`. It is
-> **not** recommended to copy and paste this entire configuration into `shell.json`,
-> as options or their default values may change across updates, resulting in a stale config.
->
-> This is meant to serve as a reference of all the available options, and you should
-> <ins>only add the ones you want to change</ins> to `shell.json`.
+> [!NOTE]
+> This is a representative configuration, not an exhaustive schema or a promise of current defaults.
+> Add only the settings you want to override. Nexus exposes settings interactively;
+> the definitions in [`plugin/src/Caelestia/Config`](plugin/src/Caelestia/Config) are the source of truth.
 
 <details><summary>Example config</summary>
 
@@ -1214,8 +1216,7 @@ For example, to automatically hide the bar on the monitor named `DP-1`:
                 {
                     "name": "wireguard",
                     "interface": "your-connection-name",
-                    "displayName": "Wireguard (Your VPN)",
-                    "enabled": false
+                    "displayName": "WireGuard (Your VPN)"
                 }
             ]
         },
@@ -1284,7 +1285,7 @@ Per-monitor token overrides are also available at
 This fork's flake provides a Mango package and Home Manager module. Add this repository as a flake input
 and import its `homeManagerModules.default`. The module exposes the named `quickshell/caelestia` config,
 so bundled IPC keybindings can find the running shell. Configure Mango separately and import the session
-environment as shown above. Nix packaging changes have not been built here because Nix is unavailable.
+environment as shown above. Nix parsing, package evaluation, and build-plan resolution have been checked; a full Nix build has not been completed.
 
 <details><summary><code>home.nix</code></summary>
 
@@ -1374,7 +1375,7 @@ warns when its tracked focused surface differs. This points to Qt/Wayland focus 
 
 ### Workspace clicks work only once
 
-Update and reinstall this fork, then restart Caelestia. The adapter now uses `view` for direct switches;
+Update and reinstall this fork, then restart Caelestia. The adapter uses `viewcrossmon` to target known workspaces and `view` as a fallback;
 `comboview` retains keyboard-combination state and can accumulate tags across mouse clicks.
 See the [Mango dispatcher reference](https://mangowm.github.io/docs/bindings/keys/).
 
@@ -1385,7 +1386,7 @@ Also rebuild and install the C++ plugins, then restart Quickshell; copying QML a
 
 ### How does screen recording work?
 
-Screen recording is fully integrated using `gpu-screen-recorder` and `slurp` for region captures. Ensure `gpu-screen-recorder` and `slurp` are installed. Recordings are saved to `~/Videos/Recordings` (configurable via `CAELESTIA_RECORDINGS_DIR`) and can be managed or played back directly from the Utilities drawer.
+Screen recording uses `gpu-screen-recorder` and `slurp` for region selection. The combined region-with-sound menu option has a [known bug](#compatibility-and-known-limits). Ensure `gpu-screen-recorder` and `slurp` are installed. Recordings are saved to `~/Videos/Recordings` (configurable via `CAELESTIA_RECORDINGS_DIR`) and can be managed or played back directly from the Utilities drawer.
 
 ### My screen is flickering!
 
@@ -1398,7 +1399,7 @@ The shell is installed to `/etc/xdg/quickshell/caelestia`. You can edit these fi
 ### I want to disable \_\_\_ feature!
 
 Please read the [configuring](#configuring) section.
-If there is no corresponding option, make a [feature request](https://github.com/caelestia-dots/shell/issues/new?template=feature.yml).
+If there is no corresponding option, make a [feature request](https://github.com/evoziosk/caelestia-shell-mango/issues/new).
 
 ### How do I make my colour scheme change to match my wallpaper?
 
@@ -1418,8 +1419,8 @@ Without caelestia-cli, install Matugen and select `dynamic` through `>scheme` in
 Wallpaper changes and previews then generate Material colours directly. Use `>variant` to choose a
 Material variant and the dashboard's light/dark control to change mode. The helper runs Matugen with
 `--dry-run`, so it does not execute your Matugen templates, hooks, or wallpaper commands.
-Static preset collections and the CLI's external application theming remain optional CLI features.
-The native backend also provides bundled named schemes and optional user palettes in
+Built-in named schemes and application theme generation work without caelestia-cli.
+The native backend also accepts user palettes in
 `~/.config/caelestia/schemes/*.json` (the same `name`, `flavour`, `mode`, `colours`
 format as `scheme.json`). It generates GTK, Alacritty, Kitty, foot, fuzzel and btop
 themes in `~/.config/caelestia/themes` and adds includes to existing app configs (or creates defaults for installed apps).
@@ -1435,7 +1436,7 @@ stop/pause signals only the recorder started by this shell, including after relo
 
 Mango has no Hyprland window-tag API. The bar supports app IDs (including trailing
 `*` prefix matches) in `bar.workspaces.ignoredTags`. To assign filtering tags,
-configure `bar.workspaces.tagRules`, for example:
+configure `bar.workspaces.tagRules` globally, for example:
 
 ```json
 {"bar": {"workspaces": {"tagRules": {"steam_app_*": ["hide_in_bar"]}}}}
@@ -1448,13 +1449,11 @@ apps. Alpha-threshold blur remains conditional on compositor protocol/features.
 
 ### My wallpapers aren't showing up in the launcher!
 
-The launcher pulls wallpapers from `~/Pictures/Wallpapers` by default. You can change this in the config. Additionally,
-the launcher only shows an odd number of wallpapers at one time. If you only have 2 wallpapers, consider getting more
-(or just putting one).
+The launcher reads wallpapers from `~/Pictures/Wallpapers` by default; change `paths.wallpaperDir` to use another directory. The carousel shows an odd number of previews at once. With two matching files it shows one preview at a time; both files remain selectable.
 
 ## Validation
 
-Checks completed on Mango 0.18.0 and the installed Quickshell/Qt stack:
+Previous integration checks on Mango 0.18.0 and the development Quickshell/Qt stack are listed below. These describe the tested setup, not a guarantee for every compositor version or hardware configuration:
 
 - Build and native keyboard tests covering two layouts, layout-group changes, Caps Lock, and Num Lock.
 - Native pin/unpin on a disposable window, repeated workspace switching, special-overlay move/return,
@@ -1478,17 +1477,10 @@ Checks completed on Mango 0.18.0 and the installed Quickshell/Qt stack:
   size, floating state, pinning, and placement. Native group joining, member cycling, and leaving
   were verified on two disposable windows in an otherwise empty tag.
 
-Run the deterministic Python and JavaScript checks from the repository:
-
-```sh
-PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_*.py'
-node tests/test_mango_model.js
-```
+The latest port regression run passed 37 Python tests, the JavaScript model checks, and the headless QML service check. See [port regression checks](#port-regression-checks) for commands. The QML check covers simulated multiple outputs, visible/pinned clients, monitor-targeted special-tag commands, and game-mode restoration after both reload notification paths.
 
 `tests/test_keyboardstate.cpp` also tests the compiled keyboard component with synthetic XKB keymaps.
-Nix parsing, package evaluation, and build-plan resolution pass. A full Nix build and every
-hardware-specific configuration have not been verified. The resolved Nix build requires about
-959 MiB of downloads and 3.7 GiB unpacked, exceeding the available space in the temporary test store.
+Nix parsing, package evaluation, and build-plan resolution have been checked. The earlier full-build attempt was blocked by space in the temporary test store; download and unpacked sizes depend on the flake revision and cache. A full Nix build and all hardware configurations have not been verified.
 
 ## Credits & Appreciation
 
@@ -1519,11 +1511,11 @@ The original Caelestia shell took inspiration from:
 
 ## Stonks 📈
 
-<a href="https://www.star-history.com/#caelestia-dots/shell&Date">
+<a href="https://www.star-history.com/#evoziosk/caelestia-shell-mango&Date">
     <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=caelestia-dots/shell&type=Date&theme=dark" />
-        <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=caelestia-dots/shell&type=Date" />
-        <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=caelestia-dots/shell&type=Date" />
+        <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=evoziosk/caelestia-shell-mango&type=Date&theme=dark" />
+        <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=evoziosk/caelestia-shell-mango&type=Date" />
+        <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=evoziosk/caelestia-shell-mango&type=Date" />
     </picture>
 </a>
 
