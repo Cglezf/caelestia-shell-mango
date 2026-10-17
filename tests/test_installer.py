@@ -48,6 +48,23 @@ class MangoSetupTest(unittest.TestCase):
             config_helper.configure(config, profile, True)
             self.assertNotIn(rule, config.read_text())
 
+    def test_reload_hook_is_installed_once_including_sources(self):
+        with tempfile.TemporaryDirectory() as folder:
+            directory = Path(folder)
+            config = directory / "config.conf"
+            hook = "exec=qs ipc -c caelestia call mango configReloaded"
+            profile = ROOT / "assets/mango-keybinds.conf"
+            config.write_text("blur=0\n")
+            config_helper.configure(config, profile, True)
+            first = config.read_text()
+            self.assertEqual(first.count(hook), 1)
+            config_helper.configure(config, profile, True)
+            self.assertEqual(config.read_text(), first)
+            (directory / "hook.conf").write_text(hook + "\n")
+            config.write_text("source=hook.conf\n")
+            config_helper.configure(config, profile, True)
+            self.assertNotIn(hook, config.read_text())
+
     def test_conflict_leaves_config_untouched(self):
         with tempfile.TemporaryDirectory() as folder:
             config = Path(folder) / "config.conf"

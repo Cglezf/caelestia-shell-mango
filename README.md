@@ -44,6 +44,12 @@ Every contribution helps keep this project maintained and supports future improv
 
 ### Recent fixes
 
+- Keyboard-change toasts now honor the Caps Lock, Num Lock, and layout notification settings. The lock screen compares the active layout against the first configured layout.
+- Fullscreen behavior and visualiser auto-hide use visible Mango clients across all selected tags, including pinned windows. The workspace bar highlights every selected tag.
+- Special-tag actions retain their target monitor, and notification fullscreen checks use visible windows on the focused output.
+- Workspace labels retain all digits on secondary monitors (for example, tag 10 displays as 10).
+- Native reload hooks refresh shell options and reapply game mode; shell-initiated reloads wait for successful IPC completion.
+
 - Workspace clicks use `mmsg dispatch view,<tag>` so repeated switches work without a keyboard shortcut resetting combination state.
 - Workspace indicators respect the compositor's tag count; window occupancy uses Mango client data.
 - Fullscreen notification checks accept Mango monitor objects, and drawer clicks use the current screen state.
@@ -98,6 +104,37 @@ For a manually managed config, add:
 bind=SUPER,slash,spawn,qs ipc -c caelestia call keybindings toggle
 window_rule=title:^Caelestia Keybindings$,is_floating:1
 ```
+
+### Compositor reload synchronization
+
+The bundled binding profiles and managed blur fragment include this Mango hook:
+
+```ini
+exec=qs ipc -c caelestia call mango configReloaded
+```
+
+Keep it in manually managed configurations too (`exec`, not `exec_once`). It
+refreshes shell options and reapplies game mode after native, manual, or automatic
+Mango reloads. Re-running the keybinding installer adds the hook to existing
+plain-conf installations; sourced hooks are detected to avoid duplicates.
+For TOML configurations, add the command to the existing `exec` list under
+`[global]`. Shell-initiated reloads also synchronize directly after IPC success.
+
+### Port regression checks
+
+From a configured checkout with Quickshell and the built plugin available:
+
+```sh
+cmake --build build --parallel 2
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_*.py'
+node tests/test_mango_model.js
+python3 tests/check_mango_service.py
+```
+
+The QML service check runs offscreen with mocked compositor commands and isolated
+configuration/state directories. It checks multi-monitor visibility, special-tag
+command ordering, and game-mode restoration after both reload paths without
+changing the desktop. Hardware-specific behavior still requires live testing.
 
 ### Current limits
 

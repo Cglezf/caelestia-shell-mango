@@ -26,7 +26,7 @@ StyledClippingRect {
     readonly property var wsIds: {
         const ids = Config.bar.workspaces.showUnoccupied ? normalWorkspaceIds : Hypr.workspaces.values.filter(w =>
             w.id > 0 && (!Config.bar.workspaces.perMonitor || w.monitor === root.monitor) &&
-            (w.id === activeWsId || w.toplevels.values.some(t => !Hypr.isToplevelIgnored(t, GlobalConfig.bar.workspaces.ignoredTags)))).map(w => w.id);
+            (w.active || w.toplevels.values.some(t => !Hypr.isToplevelIgnored(t, GlobalConfig.bar.workspaces.ignoredTags)))).map(w => w.id);
         const current = Math.max(0, ids.indexOf(activeWsId));
         const start = Config.bar.workspaces.showUnoccupied
             ? Math.min(Math.floor(current / shown) * shown, Math.max(0, ids.length - shown))
@@ -158,7 +158,7 @@ StyledClippingRect {
                 if (Hypr.activeWsId !== ws)
                     Hypr.focusWorkspace(ws);
                 else
-                    Hypr.toggleSpecial("special");
+                    Hypr.toggleSpecial("special", root.monitor);
             }
         }
 

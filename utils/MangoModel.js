@@ -38,3 +38,20 @@ function windowTags(client, rules) {
     }
     return [...new Set(tags)];
 }
+
+// Visibility is authoritative for multi-tag views, global windows and overlays.
+function visibleToplevels(toplevels, monitor) {
+    return monitor ? toplevels.filter(t => t.monitor === monitor && t.lastIpcObject.visible && t.lastIpcObject.mapped) : [];
+}
+
+function workspaceLabel(workspace, fallback) {
+    if (!workspace) return String(fallback);
+    const name = workspace.name;
+    return name.startsWith("special:") ? name.slice(8)[0] : name;
+}
+
+function keyboardChanges(previous, current) {
+    if (!previous || !current.ready || !previous.ready) return [];
+    return ["capsLock", "numLock", "layout"].filter(key => previous[key] !== current[key]
+        && (key !== "layout" || (previous.layout && current.layout)));
+}

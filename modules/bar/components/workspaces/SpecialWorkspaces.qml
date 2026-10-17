@@ -224,9 +224,9 @@ Item {
             if (ws) {
                 const match = Hypr.workspaces.values.find(w => w.id === ws.ws);
                 if (match)
-                    Hypr.toggleSpecial(Hypr.trimWsName(match.name));
+                    Hypr.toggleSpecial(Hypr.trimWsName(match.name), match.monitor);
             } else {
-                Hypr.toggleSpecial("special");
+                Hypr.toggleSpecial("special", root.monitor);
             }
         }
     }

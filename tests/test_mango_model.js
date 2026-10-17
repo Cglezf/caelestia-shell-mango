@@ -18,3 +18,21 @@ console.log('Monitor/tag identity, multitag membership, selectors, and special v
 
 assert.deepEqual(Array.from(model.windowTags({appid:'steam_app_123'}, {'steam_app_*':['hide_in_bar']})), ['steam_app_123', 'hide_in_bar']);
 assert.deepEqual(Array.from(model.windowTags({appid:'foot'}, {'steam_app_*':['hide_in_bar']})), ['foot']);
+
+const left = {name:'eDP-1'}, right = {name:'DP-1'};
+const window = (monitor, visible, fullscreen=0, mapped=true) => ({monitor, lastIpcObject:{visible, fullscreen, mapped}});
+const clients = [window(left,true), window(left,true,2), window(left,false,2), window(right,true,2), window(left,true,2,false)];
+assert.equal(model.visibleToplevels(clients,left).length,2);
+assert(model.visibleToplevels(clients,left).some(t => t.lastIpcObject.fullscreen === 2));
+assert.equal(model.visibleToplevels(clients,null).length,0);
+assert.equal(model.workspaceLabel({id:1010,name:'10'},1010),'10');
+assert.equal(model.workspaceLabel({id:1031,name:'31'},1031),'31');
+assert.equal(model.workspaceLabel({id:-2,name:'special:special'},-2),'s');
+const initial = {ready:true,capsLock:false,numLock:false,layout:'English (US)'};
+assert.equal(model.keyboardChanges(null,initial).length,0);
+assert.equal(model.keyboardChanges({...initial,ready:false},initial).length,0);
+assert.equal(model.keyboardChanges(initial,{...initial,ready:false}).length,0);
+assert.equal(model.keyboardChanges(initial,initial).length,0);
+assert.deepEqual(Array.from(model.keyboardChanges(initial,{...initial,capsLock:true,numLock:true,layout:'German'})),['capsLock','numLock','layout']);
+assert.equal(model.keyboardChanges({...initial,layout:''},initial).length,0);
+console.log('Visible windows, multi-digit labels and keyboard change notifications: passed');
