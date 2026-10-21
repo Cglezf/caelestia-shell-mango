@@ -4,14 +4,16 @@
 //@ pragma DefaultEnv QSG_RENDER_LOOP=threaded
 //@ pragma DefaultEnv QT_QUICK_FLICKABLE_WHEEL_DECELERATION=10000
 
-import "modules"
-import "modules/drawers"
-import "modules/background"
-import "modules/areapicker"
-import "modules/lock"
 import QtQuick
 import Quickshell
+import Caelestia.Config
 import qs.services
+import qs.modules
+import qs.modules.areapicker
+import qs.modules.background
+import qs.modules.drawers
+import qs.modules.lock
+import qs.daemons
 
 ShellRoot {
     id: root
@@ -19,19 +21,35 @@ ShellRoot {
     settings.watchFiles: true
     readonly property bool toolingMode: Quickshell.env("CAELESTIA_QML_TOOLING") === "1"
 
+    Component.onCompleted: {
+        // Force certain singletons to load on shell init instead of lazily
+        Notifs;
+        Players;
+        Recorder;
+        Brightness;
+        Weather.reload();
+
+        if (GlobalConfig.utilities.vpn.enabled)
+            VPN;
+    }
+
+    FontLoader {
+        source: Quickshell.shellPath("assets/google-sans-flex/GoogleSansFlex-VariableFont_GRAD,ROND,opsz,slnt,wdth,wght.ttf")
+    }
+
     Binding {
         target: ShellState
         property: "shellRoot"
         value: root
     }
 
-    GSFLoader {}
-    ServiceLoader {}
+    // Daemons
     Shortcuts {}
 
     Loader {
         active: !root.toolingMode
         sourceComponent: Item {
+            // Modules
             Background {}
             Drawers {}
             AreaPicker {}
@@ -39,7 +57,10 @@ ShellRoot {
                 id: lock
             }
 
+            // Daemons
             BatteryMonitor {}
+            GameMode {}
+            IdleInhibit {}
             LockKeyOsd {}
             IdleMonitors {
                 lock: lock

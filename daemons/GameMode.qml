@@ -1,19 +1,16 @@
-pragma Singleton
-
 import QtQuick
 import Quickshell
 import Quickshell.Io
 import Caelestia
 import Caelestia.Config
 import Caelestia.I18n
+import Caelestia.State
 import qs.services
 
-Singleton {
+Scope {
     id: root
 
-    property alias enabled: props.enabled
-
-    function setDynamicConfs(): void {
+    function applyGameMode(): void {
         Hypr.extras.applyOptions({
             "animations:enabled": 0,
             "decoration:shadow:enabled": 0,
@@ -27,32 +24,32 @@ Singleton {
         });
     }
 
-    Component.onCompleted: { if (enabled) setDynamicConfs(); }
-
-    onEnabledChanged: {
-        if (enabled) {
-            setDynamicConfs();
+    function syncState(enableDisable: bool): void {
+        if (RuntimeState.gameMode) {
+            root.applyGameMode();
             if (GlobalConfig.utilities.toasts.gameModeChanged)
                 Toaster.toast(Tr.tr("Game mode enabled"), Tr.tr("Disabled compositor animations, blur, gaps and shadows"), "gamepad");
-        } else {
+        } else if (enableDisable) {
             Hypr.extras.message("reload");
             if (GlobalConfig.utilities.toasts.gameModeChanged)
                 Toaster.toast(Tr.tr("Game mode disabled"), Tr.tr("Compositor settings restored"), "gamepad");
         }
     }
 
-    PersistentProperties {
-        id: props
+    Component.onCompleted: syncState(false)
 
-        property bool enabled: false
+    Connections {
+        function onGameModeChanged(): void {
+            root.syncState(true);
+        }
 
-        reloadableId: "gameMode"
+        target: RuntimeState
     }
 
     Connections {
         function onConfigReloaded(): void {
-            if (props.enabled)
-                root.setDynamicConfs();
+            if (RuntimeState.gameMode)
+                root.applyGameMode();
         }
 
         target: Hypr
@@ -60,19 +57,19 @@ Singleton {
 
     IpcHandler {
         function isEnabled(): bool {
-            return props.enabled;
+            return RuntimeState.gameMode;
         }
 
         function toggle(): void {
-            props.enabled = !props.enabled;
+            RuntimeState.gameMode = !RuntimeState.gameMode;
         }
 
         function enable(): void {
-            props.enabled = true;
+            RuntimeState.gameMode = true;
         }
 
         function disable(): void {
-            props.enabled = false;
+            RuntimeState.gameMode = false;
         }
 
         target: "gameMode"

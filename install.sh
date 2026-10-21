@@ -92,7 +92,7 @@ install_arch_dependencies() {
     local package helper
     local -a repository_packages=() aur_packages=()
     local -a packages=(base-devel cmake ninja pkgconf python wayland libxkbcommon
-        qt6-base qt6-declarative qt6-shadertools qt6-imageformats aubio libpipewire
+        qt6-base qt6-declarative qt6-shadertools qt6-imageformats qt6-multimedia aubio libpipewire
         libqalculate lm_sensors libcava quickshell-git qt6-m3shapes-git networkmanager
         power-profiles-daemon ddcutil brightnessctl app2unit fish bash swappy slurp grim
         matugen gpu-screen-recorder ttf-material-symbols-variable ttf-rubik-vf ttf-cascadia-code-nerd)

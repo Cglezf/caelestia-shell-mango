@@ -206,6 +206,7 @@ Dependencies:
 -   `qt6-base`
 -   `qt6-declarative`
 -   `qt6-imageformats`
+-   `qt6-multimedia` (video wallpapers)
 -   [`qt6-m3shapes-git`](https://github.com/soramanew/m3shapes)
 -   [`swappy`](https://github.com/jtheoof/swappy)
 -   [`gpu-screen-recorder`](https://git.dec05eba.com/gpu-screen-recorder/) (for screen recording)

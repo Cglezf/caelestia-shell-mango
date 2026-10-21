@@ -1,4 +1,4 @@
-find_package(Qt6 REQUIRED COMPONENTS ShaderTools Core Qml Gui Quick QuickControls2 Concurrent Sql Network DBus)
+find_package(Qt6 REQUIRED COMPONENTS ShaderTools Core Qml Gui Quick QuickControls2 Concurrent Sql Network DBus Multimedia)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(WaylandClient IMPORTED_TARGET wayland-client REQUIRED)
 pkg_check_modules(XkbCommon IMPORTED_TARGET xkbcommon REQUIRED)
@@ -38,4 +38,5 @@ include(cmake/qml-module.cmake)
 add_library(caelestia-util INTERFACE)
 target_include_directories(caelestia-util INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
+add_subdirectory(3rdparty/rgbcx)
 add_subdirectory(src/Caelestia)
