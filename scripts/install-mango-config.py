@@ -126,7 +126,7 @@ def write_backup(path, text):
         temporary.unlink(missing_ok=True)
 
 
-def scan_window_rules(path, seen=None):
+def scan_window_rules(path, seen=None, kind_filter="window_rule"):
     seen = set() if seen is None else seen
     path = path.expanduser().resolve()
     if path in seen or not path.is_file():
@@ -137,11 +137,11 @@ def scan_window_rules(path, seen=None):
         line = raw.split("#", 1)[0].strip()
         if "=" not in line: continue
         kind, value = (part.strip() for part in line.split("=", 1))
-        if kind == "window_rule":
+        if kind == kind_filter:
             rules.add(",".join(part.strip() for part in value.split(",")))
         elif kind in ("source", "source_optional"):
             child = Path(os.path.expandvars(value.strip('"\''))).expanduser()
-            rules.update(scan_window_rules(child if child.is_absolute() else path.parent / child, seen))
+            rules.update(scan_window_rules(child if child.is_absolute() else path.parent / child, seen, kind_filter))
     return rules
 
 
@@ -157,6 +157,7 @@ def configure(config, bindings_file, keybinds=False, autostart=False, replace_co
     if keybinds:
         desired, _, _ = scan(bindings_file)
         existing_rules = scan_window_rules(config if config.exists() else Path("/etc/mango/config.conf"))
+        existing_execs = scan_window_rules(config if config.exists() else Path("/etc/mango/config.conf"), kind_filter="exec")
         if not desired:
             raise ValueError(f"No installed bindings found in {bindings_file}")
         conflicts = [key for key, action in desired.items() if lookup(existing, key) and lookup(existing, key)[0] != action[0]]
@@ -171,6 +172,8 @@ def configure(config, bindings_file, keybinds=False, autostart=False, replace_co
                 continue
             kind, value = (part.strip() for part in raw.split("=", 1))
             if is_binding(kind) and not lookup(existing, binding_key(kind, value, "default")):
+                additions.append(raw)
+            elif kind == "exec" and value not in existing_execs:
                 additions.append(raw)
             elif kind == "window_rule" and ",".join(part.strip() for part in value.split(",")) not in existing_rules:
                 additions.append(raw)

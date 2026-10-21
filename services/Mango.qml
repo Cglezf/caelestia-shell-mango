@@ -6,6 +6,7 @@ import Quickshell
 import Quickshell.Io
 import qs.utils
 import "../utils/MangoModel.js" as Model
+import Caelestia.I18n
 import Caelestia.Config
 import Caelestia.Services
 import Quickshell.Wayland._ToplevelManagement
@@ -44,7 +45,7 @@ Singleton {
     readonly property string currentLayout: focusedMonitor?.state?.layout_symbol ?? ""
     readonly property string kbLayout: focusedMonitor?.state?.keyboardlayout ?? ""
     readonly property string kbLayoutFull: kbLayout
-    readonly property string defaultKbLayout: kbLayout
+    readonly property string defaultKbLayout: availableLayouts[0] ?? ""
 
     readonly property var toplevelList: clientState.map(client => root.toToplevel(client))
     readonly property var toplevels: ({ values: toplevelList })
@@ -72,8 +73,34 @@ Singleton {
     readonly property bool hadKeyboard: KeyboardState.ready
     readonly property var availableLayouts: KeyboardState.layouts
     readonly property var kbMap: new Map(availableLayouts.map(name => [name, name]))
+    property var previousKeyboardState: null
+    readonly property var keyboardSnapshot: ({ ready: hadKeyboard, capsLock, numLock, layout: kbLayout })
+    onKeyboardSnapshotChanged: keyboardToastTimer.restart()
+    Timer {
+        id: keyboardToastTimer
+        interval: 0
+        running: true
+        onTriggered: {
+            const current = root.keyboardSnapshot;
+            const changes = Model.keyboardChanges(root.previousKeyboardState, current);
+            root.previousKeyboardState = current;
+            const config = GlobalConfig.utilities.toasts;
+            if (changes.includes("capsLock") && config.capsLockChanged)
+                Toaster.toast(current.capsLock ? Tr.tr("Caps lock enabled") : Tr.tr("Caps lock disabled"),
+                    current.capsLock ? Tr.tr("Caps lock is currently enabled") : Tr.tr("Caps lock is currently disabled"),
+                    current.capsLock ? "keyboard_capslock_badge" : "keyboard_capslock");
+            if (changes.includes("numLock") && config.numLockChanged)
+                Toaster.toast(current.numLock ? Tr.tr("Num lock enabled") : Tr.tr("Num lock disabled"),
+                    current.numLock ? Tr.tr("Num lock is currently enabled") : Tr.tr("Num lock is currently disabled"),
+                    current.numLock ? "looks_one" : "timer_1");
+            if (changes.includes("layout") && config.kbLayoutChanged)
+                Toaster.toast(Tr.tr("Keyboard layout changed"), Tr.tr("Layout changed to: %1").arg(current.layout), "keyboard");
+        }
+    }
+
     property var deviceState: []
     property var nativeOptions: ({})
+    property bool notifyReloadAfterOptions: false
     readonly property var options: ({
         "animations:enabled": nativeOptions.animations ?? 1,
         "decoration:rounding": nativeOptions.border_radius ?? 0,
@@ -137,6 +164,10 @@ Singleton {
             onStreamFinished: {
                 const data = root.parse(text);
                 if (data) root.nativeOptions = data;
+                if (root.notifyReloadAfterOptions) {
+                    root.notifyReloadAfterOptions = false;
+                    root.configReloaded();
+                }
             }
         }
     }
@@ -250,7 +281,7 @@ Singleton {
             return null;
         const clients = toplevelsOnTag(tag, monitor);
         return {
-            id: Model.workspaceId(monitor.id, tag), tag, name: tag === 0 ? "special:special" : String(tag), monitor,
+            id: Model.workspaceId(monitor.id, tag), tag, active: monitor.state.active_tags?.includes(tag) ?? false, name: tag === 0 ? "special:special" : String(tag), monitor,
             lastIpcObject: { windows: clients.length, specialWorkspace: { name: "" } },
             toplevels: { values: clients }
         };
@@ -265,24 +296,32 @@ Singleton {
     // =======================================================================
 
     property var dispatchQueue: []
+    property bool dispatchingReload: false
 
     function send(func: string, args = "", client = -1): void {
         const params = args.length > 0 ? args.split(",") : [];
         if (client >= 0) params.push("client", String(client));
         dispatchQueue = [...dispatchQueue, ["mmsg", "dispatch", [func, ...params].join(",")]];
-        runNextDispatch();
+        // Wait until Process has completed construction, including startup game mode.
+        Qt.callLater(root.runNextDispatch);
     }
 
     function runNextDispatch(): void {
         if (dispatcher.running || !dispatchQueue.length) return;
         dispatcher.command = dispatchQueue[0];
+        dispatchingReload = dispatcher.command[2] === "reload_config";
         dispatchQueue = dispatchQueue.slice(1);
         dispatcher.running = true;
     }
 
     Process {
         id: dispatcher
-        stdout: StdioCollector { onStreamFinished: { if (text.trim()) root.parse(text); } }
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const result = text.trim() ? root.parse(text) : null;
+                if (root.dispatchingReload && result?.success) reloadNotification.restart();
+            }
+        }
         stderr: SplitParser { onRead: data => console.warn("Mango dispatch:", data) }
         onExited: {
             stateRefreshTimer.restart();
@@ -381,6 +420,16 @@ Singleton {
         }
     }
 
+    function visibleToplevels(monitor: var): var {
+        return Model.visibleToplevels(toplevelList, monitor);
+    }
+
+    function toggleSpecial(monitor: var): void {
+        if (!monitor) return;
+        send("focusmon", monitor.name);
+        send("toggle_special_tag");
+    }
+
     function monitorFor(screen): var {
         return outputsList.find(m => m.name === screen?.name) ?? focusedMonitor;
     }
@@ -412,7 +461,7 @@ Singleton {
             onRead: data => {
                 const result = root.parse(data);
                 if (result?.changed) {
-                    root.configReloaded();
+                    reloadNotification.restart();
                     root.layerRulesChanged();
                 }
             }
@@ -430,8 +479,22 @@ Singleton {
 
     function reloadDynamicConfs(): void {
         send("reload_config", "");
-        optionQuery.running = true;
-        configReloaded();
+    }
+
+    Timer {
+        id: reloadNotification
+        interval: 150
+        onTriggered: {
+            root.notifyReloadAfterOptions = true;
+            optionQuery.running = true;
+            deviceQuery.running = true;
+        }
+    }
+
+    IpcHandler {
+        target: "mango"
+        function configReloaded(): void { reloadNotification.restart(); }
+        function reload(): void { root.reloadDynamicConfs(); }
     }
 
     // =======================================================================

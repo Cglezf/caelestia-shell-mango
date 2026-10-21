@@ -44,42 +44,19 @@ QtObject {
         dispatch(`workspace ${ws}`);
     }
 
-    function toggleSpecial(name: string): void {
+    function toggleSpecial(name: string, monitor = focusedMonitor): void {
         if (supportsSpecialWorkspaces)
-            dispatch(`togglespecialworkspace ${name}`);
+            Services.Mango.toggleSpecial(monitor);
     }
 
     function cycleSpecialWorkspace(direction: string): void {
-        const openSpecials = workspaces.values.filter(w => w.name.startsWith("special:") && w.lastIpcObject.windows > 0);
+        // Mango has one overlay per output. Keep cycling local to this output.
+        const workspace = workspaces.values.find(w => w.tag === 0 && w.monitor === focusedMonitor);
+        if (workspace) focusWorkspace(workspace.id);
+    }
 
-        if (openSpecials.length === 0)
-            return;
-
-        const activeSpecial = focusedMonitor?.lastIpcObject?.specialWorkspace?.name ?? "";
-
-        if (!activeSpecial) {
-            if (lastSpecialWorkspace) {
-                const workspace = workspaces.values.find(w => w.name === lastSpecialWorkspace);
-                if (workspace && workspace.lastIpcObject.windows > 0) {
-                    focusWorkspace(lastSpecialWorkspace);
-                    return;
-                }
-            }
-            focusWorkspace(openSpecials[0].name);
-            return;
-        }
-
-        const currentIndex = openSpecials.findIndex(w => w.name === activeSpecial);
-        let nextIndex = 0;
-
-        if (currentIndex !== -1) {
-            if (direction === "next")
-                nextIndex = (currentIndex + 1) % openSpecials.length;
-            else
-                nextIndex = (currentIndex - 1 + openSpecials.length) % openSpecials.length;
-        }
-
-        focusWorkspace(openSpecials[nextIndex].name);
+    function visibleToplevels(monitor): var {
+        return Services.Mango.visibleToplevels(monitor);
     }
 
     function monitorNames(): list<string> {

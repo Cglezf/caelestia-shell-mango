@@ -9,6 +9,7 @@ import Caelestia.Config
 import qs.components
 import qs.services
 import qs.utils
+import "../../../../utils/MangoModel.js" as Model
 
 Item {
     id: root
@@ -29,7 +30,7 @@ Item {
     readonly property var toplevels: Hypr.toplevelsForWs(ws, GlobalConfig.bar.workspaces.ignoredTags)
     readonly property bool isOccupied: toplevels.length > 0
     readonly property bool hasWindows: isOccupied && showWindows && Config.bar.workspaces.maxWindowIcons > 0
-    readonly property bool focused: activeWsId === ws
+    readonly property bool focused: ws > 0 ? (Hypr.workspaces.values.find(w => w.id === ws)?.active ?? false) : activeWsId === ws
     readonly property list<int> focusedShapeList: [MaterialShape.Slanted, MaterialShape.Oval, MaterialShape.Pill, MaterialShape.Triangle, MaterialShape.Arrow, MaterialShape.Diamond, MaterialShape.Pentagon, MaterialShape.Gem, MaterialShape.VerySunny, MaterialShape.Sunny, MaterialShape.Cookie4Sided, MaterialShape.Cookie6Sided, MaterialShape.Cookie7Sided, MaterialShape.Cookie9Sided, MaterialShape.Cookie12Sided, MaterialShape.Clover4Leaf, MaterialShape.SoftBurst, MaterialShape.Ghostish]
 
     property color offMonitorColour: Colours.palette.m3outlineVariant
@@ -128,7 +129,7 @@ Item {
                     return label;
 
                 const ws = Hypr.workspaces.values.find(w => w.id === root.ws);
-                const wsName = !ws || ws.name == root.ws ? root.ws : Hypr.trimWsName(ws.name)[0];
+                const wsName = Model.workspaceLabel(ws, root.ws);
 
                 const capitalisation = Config.bar.workspaces.capitalisation;
                 if (capitalisation === BarWorkspaceCapitalisation.Upper)
